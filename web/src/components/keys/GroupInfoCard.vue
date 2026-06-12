@@ -140,7 +140,10 @@ onMounted(() => {
   loadConfigOptions();
   loadParentAggregateGroups();
   loadLeakScanStatus();
-  leakScanTimer = window.setInterval(loadLeakScanStatus, 5000);
+  leakScanTimer = window.setInterval(() => {
+    loadStats();
+    loadLeakScanStatus();
+  }, 5000);
 });
 
 onUnmounted(() => {

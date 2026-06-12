@@ -197,6 +197,14 @@ func (s *GroupLeakScanService) GetStatus(ctx context.Context, groupID uint) (*Le
 }
 
 func (s *GroupLeakScanService) Start(ctx context.Context, groupID uint) (*models.GroupLeakScanRun, error) {
+	return s.startWithCleanup(ctx, groupID, true)
+}
+
+func (s *GroupLeakScanService) Resume(ctx context.Context, groupID uint) (*models.GroupLeakScanRun, error) {
+	return s.startWithCleanup(ctx, groupID, false)
+}
+
+func (s *GroupLeakScanService) startWithCleanup(ctx context.Context, groupID uint, clearOld bool) (*models.GroupLeakScanRun, error) {
 	cfg, err := s.GetConfig(ctx, groupID)
 	if err != nil {
 		return nil, err
@@ -220,6 +228,11 @@ func (s *GroupLeakScanService) Start(ctx context.Context, groupID uint) (*models
 	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancelByGroup[groupID] = cancel
 	s.mu.Unlock()
+
+	if clearOld {
+		s.db.WithContext(ctx).Where("group_id = ?", groupID).Delete(&models.GroupLeakScanEvent{})
+		s.db.WithContext(ctx).Where("group_id = ?", groupID).Delete(&models.GroupLeakScanRun{})
+	}
 
 	now := time.Now()
 	run := models.GroupLeakScanRun{GroupID: groupID, Status: models.LeakScanStatusRunning, StartedAt: &now}
@@ -249,10 +262,6 @@ func (s *GroupLeakScanService) Stop(ctx context.Context, groupID uint) error {
 			Updates(map[string]any{"status": models.LeakScanStatusInterrupted, "finished_at": &now}).Error
 	}
 	return nil
-}
-
-func (s *GroupLeakScanService) Resume(ctx context.Context, groupID uint) (*models.GroupLeakScanRun, error) {
-	return s.Start(ctx, groupID)
 }
 
 func (s *GroupLeakScanService) Reset(ctx context.Context, groupID uint) (*models.GroupLeakScanRun, error) {
