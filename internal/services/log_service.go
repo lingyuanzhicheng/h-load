@@ -3,8 +3,8 @@ package services
 import (
 	"encoding/csv"
 	"fmt"
-	"gpt-load/internal/encryption"
-	"gpt-load/internal/models"
+	"h-load/internal/encryption"
+	"h-load/internal/models"
 	"io"
 	"strconv"
 	"time"

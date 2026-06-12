@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"gpt-load/internal/config"
-	"gpt-load/internal/encryption"
-	"gpt-load/internal/i18n"
-	"gpt-load/internal/services"
-	"gpt-load/internal/types"
+	"h-load/internal/config"
+	"h-load/internal/encryption"
+	"h-load/internal/i18n"
+	"h-load/internal/services"
+	"h-load/internal/types"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/dig"
@@ -31,6 +31,8 @@ type Server struct {
 	KeyImportService           *services.KeyImportService
 	KeyDeleteService           *services.KeyDeleteService
 	LogService                 *services.LogService
+	SearchAccountService       *services.SearchAccountService
+	GroupLeakScanService       *services.GroupLeakScanService
 	CommonHandler              *CommonHandler
 	EncryptionSvc              encryption.Service
 }
@@ -50,6 +52,8 @@ type NewServerParams struct {
 	KeyImportService           *services.KeyImportService
 	KeyDeleteService           *services.KeyDeleteService
 	LogService                 *services.LogService
+	SearchAccountService       *services.SearchAccountService
+	GroupLeakScanService       *services.GroupLeakScanService
 	CommonHandler              *CommonHandler
 	EncryptionSvc              encryption.Service
 }
@@ -69,6 +73,8 @@ func NewServer(params NewServerParams) *Server {
 		KeyImportService:           params.KeyImportService,
 		KeyDeleteService:           params.KeyDeleteService,
 		LogService:                 params.LogService,
+		SearchAccountService:       params.SearchAccountService,
+		GroupLeakScanService:       params.GroupLeakScanService,
 		CommonHandler:              params.CommonHandler,
 		EncryptionSvc:              params.EncryptionSvc,
 	}

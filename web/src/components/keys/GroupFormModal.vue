@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { keysApi } from "@/api/keys";
+import { leakScanApi } from "@/api/leak-scan";
+import { searchAccountsApi } from "@/api/search-accounts";
 import { settingsApi } from "@/api/settings";
 import ProxyKeysInput from "@/components/common/ProxyKeysInput.vue";
-import type { Group, GroupConfigOption, UpstreamInfo } from "@/types/models";
+import type { GitHubSearchAccount, Group, GroupConfigOption, SearchAccountType, UpstreamInfo } from "@/types/models";
 import { Add, Close, HelpCircleOutline, Remove } from "@vicons/ionicons5";
 import {
   NButton,
@@ -79,6 +81,14 @@ interface GroupFormData {
   header_rules: HeaderRuleItem[];
   proxy_keys: string;
   group_type?: string;
+  leak_scan_enabled: boolean;
+  leak_scan_source_types: SearchAccountType[];
+  leak_scan_account_strategy: "round_robin" | "random";
+  leak_scan_account_ids: number[];
+  leak_scan_max_pages: number;
+  leak_scan_deep_index: boolean;
+  leak_scan_search_rules: string;
+  leak_scan_match_rules: string;
 }
 
 // 表单数据
@@ -104,10 +114,19 @@ const formData = reactive<GroupFormData>({
   header_rules: [] as HeaderRuleItem[],
   proxy_keys: "",
   group_type: "standard",
+  leak_scan_enabled: false,
+  leak_scan_source_types: ["github_api"],
+  leak_scan_account_strategy: "round_robin",
+  leak_scan_account_ids: [],
+  leak_scan_max_pages: 0,
+  leak_scan_deep_index: false,
+  leak_scan_search_rules: "",
+  leak_scan_match_rules: "",
 });
 
 const channelTypeOptions = ref<{ label: string; value: string }[]>([]);
 const configOptions = ref<GroupConfigOption[]>([]);
+const searchAccounts = ref<GitHubSearchAccount[]>([]);
 const channelTypesFetched = ref(false);
 const configOptionsFetched = ref(false);
 
@@ -210,9 +229,11 @@ watch(
       if (!configOptionsFetched.value) {
         fetchGroupConfigOptions();
       }
+      fetchSearchAccounts();
       resetForm();
       if (props.group) {
         loadGroupData();
+        loadLeakScanConfig();
       }
     }
   }
@@ -305,6 +326,14 @@ function resetForm() {
     header_rules: [],
     proxy_keys: "",
     group_type: "standard",
+    leak_scan_enabled: false,
+    leak_scan_source_types: ["github_api"],
+    leak_scan_account_strategy: "round_robin",
+    leak_scan_account_ids: [],
+    leak_scan_max_pages: 0,
+    leak_scan_deep_index: false,
+    leak_scan_search_rules: "",
+    leak_scan_match_rules: "",
   });
 
   // 重置用户修改状态追踪
@@ -385,6 +414,61 @@ async function fetchGroupConfigOptions() {
   const options = await keysApi.getGroupConfigOptions();
   configOptions.value = options || [];
   configOptionsFetched.value = true;
+}
+
+async function fetchSearchAccounts() {
+  searchAccounts.value = await searchAccountsApi.list({ status: "active" });
+}
+
+async function loadLeakScanConfig() {
+  if (!props.group?.id) {
+    return;
+  }
+  const config = await leakScanApi.getConfig(props.group.id);
+  formData.leak_scan_enabled = config.enabled;
+  formData.leak_scan_source_types = config.source_types?.length ? config.source_types : ["github_api"];
+  formData.leak_scan_account_strategy = config.account_strategy || "round_robin";
+  formData.leak_scan_account_ids = config.account_ids || [];
+  formData.leak_scan_max_pages = config.max_pages || 0;
+  formData.leak_scan_deep_index = !!config.deep_index;
+  formData.leak_scan_search_rules = (config.search_rules || []).join("\n");
+  formData.leak_scan_match_rules = (config.match_rules || []).join("\n");
+}
+
+const sourceTypeOptions = [
+  { label: "GitHub API", value: "github_api" },
+  { label: "GitHub Web", value: "github_web" },
+];
+
+const accountStrategyOptions = [
+  { label: "轮询", value: "round_robin" },
+  { label: "随机", value: "random" },
+];
+
+const selectedLeakScanSourceType = computed<SearchAccountType>({
+  get: () => formData.leak_scan_source_types[0] || "github_api",
+  set: value => {
+    formData.leak_scan_source_types = [value];
+    formData.leak_scan_account_ids = formData.leak_scan_account_ids.filter(id =>
+      searchAccounts.value.some(account => account.id === id && account.type === value)
+    );
+  },
+});
+
+const searchAccountOptions = computed(() =>
+  searchAccounts.value
+    .filter(account => account.type === selectedLeakScanSourceType.value)
+    .map(account => ({
+      label: `${account.type === "github_api" ? "GitHub API" : "GitHub Web"} #${account.username || account.id}`,
+      value: account.id,
+    }))
+);
+
+function splitLines(value: string): string[] {
+  return value
+    .split("\n")
+    .map(item => item.trim())
+    .filter(Boolean);
 }
 
 // 添加配置项
@@ -548,6 +632,19 @@ async function handleSubmit() {
     } else {
       // 新建模式
       res = await keysApi.createGroup(submitData);
+    }
+
+    if (res.id && res.group_type !== "aggregate") {
+      await leakScanApi.saveConfig(res.id, {
+        enabled: formData.leak_scan_enabled,
+        source_types: formData.leak_scan_source_types,
+        account_strategy: formData.leak_scan_account_strategy,
+        account_ids: formData.leak_scan_account_ids,
+        max_pages: formData.leak_scan_max_pages,
+        deep_index: formData.leak_scan_deep_index,
+        search_rules: splitLines(formData.leak_scan_search_rules),
+        match_rules: splitLines(formData.leak_scan_match_rules),
+      });
     }
 
     emit("success", res);
@@ -844,6 +941,195 @@ async function handleSubmit() {
               {{ t("keys.addUpstream") }}
             </n-button>
           </n-form-item>
+        </div>
+
+        <!-- Leak scan configuration -->
+        <div v-if="formData.group_type !== 'aggregate'" class="form-section" style="margin-top: 10px">
+          <h4 class="section-title">泄露扫描</h4>
+
+          <n-form-item label="启用扫描">
+            <template #label>
+              <div class="form-label-with-tooltip">
+                启用扫描
+                <n-tooltip trigger="hover" placement="top">
+                  <template #trigger>
+                    <n-icon :component="HelpCircleOutline" class="help-icon" />
+                  </template>
+                  开启后可在分组信息卡启动 GitHub 泄露扫描
+                </n-tooltip>
+              </div>
+            </template>
+            <n-switch v-model:value="formData.leak_scan_enabled" />
+          </n-form-item>
+
+          <template v-if="formData.leak_scan_enabled">
+            <div class="form-row">
+              <n-form-item
+                label="信源类型"
+                path="leak_scan_source_types"
+                class="form-item-half"
+                required
+                :rule="{ type: 'array', min: 1, message: '请选择信源类型', trigger: ['blur', 'change'] }"
+              >
+                <template #label>
+                  <div class="form-label-with-tooltip">
+                    信源类型
+                    <n-tooltip trigger="hover" placement="top">
+                      <template #trigger>
+                        <n-icon :component="HelpCircleOutline" class="help-icon" />
+                      </template>
+                      选择使用 GitHub API Token 或 GitHub Web Cookie 进行代码搜索。
+                    </n-tooltip>
+                  </div>
+                </template>
+                <n-select
+                  v-model:value="selectedLeakScanSourceType"
+                  :options="sourceTypeOptions"
+                />
+              </n-form-item>
+              <n-form-item
+                label="负载策略"
+                path="leak_scan_account_strategy"
+                class="form-item-half"
+                required
+                :rule="{ required: true, message: '请选择负载策略', trigger: ['blur', 'change'] }"
+              >
+                <template #label>
+                  <div class="form-label-with-tooltip">
+                    负载策略
+                    <n-tooltip trigger="hover" placement="top">
+                      <template #trigger>
+                        <n-icon :component="HelpCircleOutline" class="help-icon" />
+                      </template>
+                      轮询会按顺序选择搜索账户，随机会从可用账户中随机选择。
+                    </n-tooltip>
+                  </div>
+                </template>
+                <n-select
+                  v-model:value="formData.leak_scan_account_strategy"
+                  :options="accountStrategyOptions"
+                />
+              </n-form-item>
+            </div>
+
+            <n-form-item
+              label="搜索账户"
+              path="leak_scan_account_ids"
+              required
+              :rule="{ type: 'array', min: 1, message: '请选择搜索账户', trigger: ['blur', 'change'] }"
+            >
+              <template #label>
+                <div class="form-label-with-tooltip">
+                  搜索账户
+                  <n-tooltip trigger="hover" placement="top">
+                    <template #trigger>
+                      <n-icon :component="HelpCircleOutline" class="help-icon" />
+                    </template>
+                    选择参与扫描的账户，只会显示当前信源类型下的有效账户。
+                  </n-tooltip>
+                </div>
+              </template>
+              <n-select
+                v-model:value="formData.leak_scan_account_ids"
+                multiple
+                filterable
+                :options="searchAccountOptions"
+                placeholder="选择参与负载均衡的 GitHub 账户"
+              />
+            </n-form-item>
+
+            <div class="form-row">
+              <n-form-item
+                label="最大页数"
+                path="leak_scan_max_pages"
+                class="form-item-half"
+                required
+                :rule="{ type: 'number', required: true, message: '请填写最大页数', trigger: ['blur', 'change'] }"
+              >
+                <template #label>
+                  <div class="form-label-with-tooltip">
+                    最大页数
+                    <n-tooltip trigger="hover" placement="top">
+                      <template #trigger>
+                        <n-icon :component="HelpCircleOutline" class="help-icon" />
+                      </template>
+                      单个搜索查询最多翻页数量。0 表示使用 GitHub 上限：API 10 页，Web 5 页。
+                    </n-tooltip>
+                  </div>
+                </template>
+                <n-input-number
+                  v-model:value="formData.leak_scan_max_pages"
+                  :min="0"
+                  placeholder="0 表示拉满 GitHub 上限"
+                  style="width: 100%"
+                />
+              </n-form-item>
+              <n-form-item label="深度索引" class="form-item-half">
+                <template #label>
+                  <div class="form-label-with-tooltip">
+                    深度索引
+                    <n-tooltip trigger="hover" placement="top">
+                      <template #trigger>
+                        <n-icon :component="HelpCircleOutline" class="help-icon" />
+                      </template>
+                      结果超过最大页面覆盖量时，自动细分查询继续搜索
+                    </n-tooltip>
+                  </div>
+                </template>
+                <n-switch v-model:value="formData.leak_scan_deep_index" />
+              </n-form-item>
+            </div>
+
+            <n-form-item
+              label="搜索规则"
+              path="leak_scan_search_rules"
+              required
+              :rule="{ required: true, message: '请填写搜索规则', trigger: ['blur', 'input'] }"
+            >
+              <template #label>
+                <div class="form-label-with-tooltip">
+                  搜索规则
+                  <n-tooltip trigger="hover" placement="top">
+                    <template #trigger>
+                      <n-icon :component="HelpCircleOutline" class="help-icon" />
+                    </template>
+                    每行一个 GitHub 搜索 query，用于定位可能包含密钥的代码文件。
+                  </n-tooltip>
+                </div>
+              </template>
+              <n-input
+                v-model:value="formData.leak_scan_search_rules"
+                type="textarea"
+                :rows="4"
+                placeholder='每行一个 GitHub query，例如：/sk-[a-zA-Z0-9]{48}/ AND content:"siliconflow"'
+              />
+            </n-form-item>
+
+            <n-form-item
+              label="匹配规则"
+              path="leak_scan_match_rules"
+              required
+              :rule="{ required: true, message: '请填写匹配规则', trigger: ['blur', 'input'] }"
+            >
+              <template #label>
+                <div class="form-label-with-tooltip">
+                  匹配规则
+                  <n-tooltip trigger="hover" placement="top">
+                    <template #trigger>
+                      <n-icon :component="HelpCircleOutline" class="help-icon" />
+                    </template>
+                    每行一个正则表达式，只对搜索结果文件内容进行匹配，匹配值会写入分组并检测。
+                  </n-tooltip>
+                </div>
+              </template>
+              <n-input
+                v-model:value="formData.leak_scan_match_rules"
+                type="textarea"
+                :rows="4"
+                placeholder="每行一个正则，例如：sk-[A-Za-z0-9_-]{20,}"
+              />
+            </n-form-item>
+          </template>
         </div>
 
         <!-- Advanced configuration -->
@@ -1381,8 +1667,8 @@ async function handleSubmit() {
 }
 
 .form-item-half {
-  flex: 1;
-  width: 50%;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* 上游地址行布局 */

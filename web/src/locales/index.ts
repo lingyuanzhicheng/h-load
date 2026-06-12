@@ -55,6 +55,7 @@ const i18n = createI18n({
 
 // 初始化时设置 axios 默认语言
 if (axios.defaults.headers) {
+	axios.defaults.headers.common = axios.defaults.headers.common || {};
   axios.defaults.headers.common["Accept-Language"] = defaultLocale;
 }
 
@@ -65,6 +66,7 @@ export function setLocale(locale: Locale) {
 
   // 更新 axios 的默认 headers
   if (axios.defaults.headers) {
+	axios.defaults.headers.common = axios.defaults.headers.common || {};
     axios.defaults.headers.common["Accept-Language"] = locale;
   }
 

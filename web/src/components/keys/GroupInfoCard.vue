@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { keysApi } from "@/api/keys";
+import { leakScanApi } from "@/api/leak-scan";
 import type {
   Group,
   GroupConfigOption,
+  GroupLeakScanRun,
+  LeakScanConfig,
   GroupStatsResponse,
   ParentAggregateGroup,
   SubGroupInfo,
@@ -10,7 +13,17 @@ import type {
 import { appState } from "@/utils/app-state";
 import { copy } from "@/utils/clipboard";
 import { getGroupDisplayName, maskProxyKeys } from "@/utils/display";
-import { CopyOutline, EyeOffOutline, EyeOutline, Pencil, Trash } from "@vicons/ionicons5";
+import {
+  CopyOutline,
+  DocumentTextOutline,
+  EyeOffOutline,
+  EyeOutline,
+  PlayOutline,
+  RefreshOutline,
+  StopCircleOutline,
+  Pencil,
+  Trash,
+} from "@vicons/ionicons5";
 import {
   NButton,
   NButtonGroup,
@@ -28,11 +41,12 @@ import {
   NTooltip,
   useDialog,
 } from "naive-ui";
-import { computed, h, onMounted, ref, watch } from "vue";
+import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import AggregateGroupModal from "./AggregateGroupModal.vue";
 import GroupCopyModal from "./GroupCopyModal.vue";
 import GroupFormModal from "./GroupFormModal.vue";
+import LeakScanLogModal from "./LeakScanLogModal.vue";
 
 const { t } = useI18n();
 
@@ -65,6 +79,10 @@ const expandedName = ref<string[]>([]);
 const configOptions = ref<GroupConfigOption[]>([]);
 const showProxyKeys = ref(false);
 const parentAggregateGroups = ref<ParentAggregateGroup[]>([]);
+const leakScanConfig = ref<LeakScanConfig | null>(null);
+const leakScanRun = ref<GroupLeakScanRun | undefined>();
+const showLeakScanLog = ref(false);
+let leakScanTimer: number | undefined;
 
 const proxyKeysDisplay = computed(() => {
   if (!props.group?.proxy_keys) {
@@ -121,6 +139,12 @@ onMounted(() => {
   loadStats();
   loadConfigOptions();
   loadParentAggregateGroups();
+  loadLeakScanStatus();
+  leakScanTimer = window.setInterval(loadLeakScanStatus, 5000);
+});
+
+onUnmounted(() => {
+  if (leakScanTimer) window.clearInterval(leakScanTimer);
 });
 
 watch(
@@ -129,6 +153,7 @@ watch(
     resetPage();
     loadStats();
     loadParentAggregateGroups();
+    loadLeakScanStatus();
   }
 );
 
@@ -173,6 +198,62 @@ async function loadStats() {
   } finally {
     loading.value = false;
   }
+}
+
+async function loadLeakScanStatus() {
+  if (!props.group?.id || props.group.group_type === "aggregate") {
+    leakScanConfig.value = null;
+    leakScanRun.value = undefined;
+    return;
+  }
+  try {
+    const status = await leakScanApi.getStatus(props.group.id);
+    leakScanConfig.value = status.config;
+    leakScanRun.value = status.run;
+  } catch {
+    leakScanConfig.value = null;
+    leakScanRun.value = undefined;
+  }
+}
+
+const leakScanEnabled = computed(() => !!leakScanConfig.value?.enabled && props.group?.group_type !== "aggregate");
+const leakScanStatus = computed(() => leakScanRun.value?.status || "idle");
+
+async function handleLeakScanMainAction() {
+  if (!props.group?.id) return;
+  if (leakScanStatus.value === "running") {
+    await leakScanApi.stop(props.group.id);
+  } else if (leakScanStatus.value === "interrupted") {
+    await leakScanApi.resume(props.group.id);
+  } else {
+    await leakScanApi.start(props.group.id);
+  }
+  await loadLeakScanStatus();
+}
+
+async function handleLeakScanReset() {
+  if (!props.group?.id) return;
+  await leakScanApi.reset(props.group.id);
+  await loadLeakScanStatus();
+}
+
+function leakScanStatusLabel() {
+  switch (leakScanStatus.value) {
+    case "running":
+      return "扫描运行中";
+    case "interrupted":
+      return "扫描已中断";
+    case "failed":
+      return "扫描失败";
+    default:
+      return "扫描未工作";
+  }
+}
+
+function leakScanMainLabel() {
+  if (leakScanStatus.value === "running") return "终止扫描";
+  if (leakScanStatus.value === "interrupted") return "恢复扫描";
+  return "启动扫描";
 }
 
 async function loadConfigOptions() {
@@ -353,6 +434,51 @@ function resetPage() {
             </h3>
           </div>
           <div class="header-actions">
+            <n-tooltip trigger="hover" v-if="leakScanEnabled">
+              <template #trigger>
+                <span class="leak-status-trigger">
+                  <span class="leak-status" :class="leakScanStatus" />
+                </span>
+              </template>
+              {{ leakScanStatusLabel() }}
+            </n-tooltip>
+            <n-button
+              v-if="leakScanEnabled"
+              quaternary
+              circle
+              size="small"
+              :type="leakScanStatus === 'running' ? 'error' : 'default'"
+              @click="handleLeakScanMainAction"
+              :title="leakScanMainLabel()"
+            >
+              <template #icon>
+                <n-icon :component="leakScanStatus === 'running' ? StopCircleOutline : PlayOutline" />
+              </template>
+            </n-button>
+            <n-button
+              v-if="leakScanEnabled"
+              quaternary
+              circle
+              size="small"
+              @click="handleLeakScanReset"
+              title="重置扫描"
+            >
+              <template #icon>
+                <n-icon class="reset-scan-icon" :component="RefreshOutline" />
+              </template>
+            </n-button>
+            <n-button
+              v-if="leakScanEnabled"
+              quaternary
+              circle
+              size="small"
+              @click="showLeakScanLog = true"
+              title="任务日志"
+            >
+              <template #icon>
+                <n-icon :component="DocumentTextOutline" />
+              </template>
+            </n-button>
             <n-button
               v-if="group?.group_type !== 'aggregate'"
               quaternary
@@ -780,6 +906,7 @@ function resetPage() {
       :source-group="group"
       @success="handleGroupCopied"
     />
+    <leak-scan-log-modal v-model:show="showLeakScanLog" :group-id="group?.id" />
   </div>
 </template>
 
@@ -805,6 +932,42 @@ function resetPage() {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+}
+
+.leak-status {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #98a2b3;
+}
+
+.leak-status-trigger {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.leak-status.running {
+  border-color: #18a058;
+  border-top-color: transparent;
+  animation: leakSpin 1s linear infinite;
+}
+
+.leak-status.interrupted,
+.leak-status.failed {
+  border-color: #d03050;
+}
+
+.reset-scan-icon {
+  font-size: 18px;
+}
+
+@keyframes leakSpin {
+  to { transform: rotate(360deg); }
 }
 
 .header-left {
@@ -843,6 +1006,7 @@ function resetPage() {
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 

@@ -2,11 +2,11 @@ package services
 
 import (
 	"fmt"
-	"gpt-load/internal/config"
-	"gpt-load/internal/encryption"
-	"gpt-load/internal/keypool"
-	"gpt-load/internal/models"
-	"gpt-load/internal/types"
+	"h-load/internal/config"
+	"h-load/internal/encryption"
+	"h-load/internal/keypool"
+	"h-load/internal/models"
+	"h-load/internal/types"
 	"sync"
 	"time"
 

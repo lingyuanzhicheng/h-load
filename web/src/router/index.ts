@@ -23,6 +23,11 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import("@/views/Logs.vue"),
       },
       {
+        path: "search-accounts",
+        name: "search-accounts",
+        component: () => import("@/views/SearchAccounts.vue"),
+      },
+      {
         path: "settings",
         name: "settings",
         component: () => import("@/views/Settings.vue"),

@@ -1,6 +1,6 @@
 .git
 .github
-gpt-load
+h-load
 data
 tmp
 web/node_modules

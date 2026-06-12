@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gpt-load/internal/store"
+	"h-load/internal/store"
 	"time"
 )
 

@@ -48,7 +48,7 @@ const props = defineProps<Props>();
 const keys = ref<KeyRow[]>([]);
 const loading = ref(false);
 const searchText = ref("");
-const statusFilter = ref<"all" | "active" | "invalid">("all");
+const statusFilter = ref<"all" | "recorded" | "active" | "invalid">("all");
 const currentPage = ref(1);
 const pageSize = ref(12);
 const total = ref(0);
@@ -59,6 +59,7 @@ const confirmInput = ref("");
 // 状态过滤选项
 const statusOptions = [
   { label: t("common.all"), value: "all" },
+  { label: "记录", value: "recorded" },
   { label: t("keys.valid"), value: "active" },
   { label: t("keys.invalid"), value: "invalid" },
 ];
@@ -419,6 +420,8 @@ function getStatusClass(status: KeyStatus): string {
   switch (status) {
     case "active":
       return "status-valid";
+    case "recorded":
+      return "status-recorded";
     case "invalid":
       return "status-invalid";
     default:
@@ -702,6 +705,12 @@ function resetPage() {
                     <n-icon :component="CheckmarkCircle" />
                   </template>
                   {{ t("keys.validShort") }}
+                </n-tag>
+                <n-tag v-else-if="key.status === 'recorded'" :bordered="false" round>
+                  <template #icon>
+                    <n-icon :component="AlertCircleOutline" />
+                  </template>
+                  记录
                 </n-tag>
                 <n-tag v-else :bordered="false" round>
                   <template #icon>
@@ -1057,6 +1066,11 @@ function resetPage() {
   border-color: var(--success-border);
   background: var(--success-bg);
   border-width: 1.5px;
+}
+
+.key-card.status-recorded {
+  border-color: var(--border-color);
+  background: var(--card-bg-solid);
 }
 
 .key-card.status-invalid {

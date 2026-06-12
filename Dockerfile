@@ -23,7 +23,7 @@ RUN go mod download
 
 COPY . .
 COPY --from=builder /build/dist ./web/dist
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags "-s -w -X gpt-load/internal/version.Version=${VERSION}" -o gpt-load
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags "-s -w -X h-load/internal/version.Version=${VERSION}" -o h-load
 
 
 FROM alpine
@@ -32,6 +32,6 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata \
     && update-ca-certificates
 
-COPY --from=builder2 /build/gpt-load .
+COPY --from=builder2 /build/h-load .
 EXPOSE 3001
-ENTRYPOINT ["/app/gpt-load"]
+ENTRYPOINT ["/app/h-load"]

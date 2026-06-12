@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"gpt-load/internal/channel"
-	"gpt-load/internal/config"
-	"gpt-load/internal/encryption"
-	app_errors "gpt-load/internal/errors"
-	"gpt-load/internal/models"
-	"gpt-load/internal/utils"
+	"h-load/internal/channel"
+	"h-load/internal/config"
+	"h-load/internal/encryption"
+	app_errors "h-load/internal/errors"
+	"h-load/internal/models"
+	"h-load/internal/utils"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/datatypes"
@@ -133,9 +133,10 @@ type GroupReorderItem struct {
 
 // KeyStats captures aggregated API key statistics for a group.
 type KeyStats struct {
-	TotalKeys   int64 `json:"total_keys"`
-	ActiveKeys  int64 `json:"active_keys"`
-	InvalidKeys int64 `json:"invalid_keys"`
+	TotalKeys    int64 `json:"total_keys"`
+	ActiveKeys   int64 `json:"active_keys"`
+	InvalidKeys  int64 `json:"invalid_keys"`
+	RecordedKeys int64 `json:"recorded_keys"`
 }
 
 // RequestStats captures request success and failure ratios over a time window.
@@ -686,7 +687,7 @@ func (s *GroupService) queryGroupHourlyStats(ctx context.Context, groupID uint, 
 
 // fetchKeyStats retrieves API key statistics for a group
 func (s *GroupService) fetchKeyStats(ctx context.Context, groupID uint) (KeyStats, error) {
-	var totalKeys, activeKeys int64
+	var totalKeys, activeKeys, invalidKeys, recordedKeys int64
 
 	if err := s.db.WithContext(ctx).Model(&models.APIKey{}).
 		Where("group_id = ?", groupID).
@@ -700,10 +701,23 @@ func (s *GroupService) fetchKeyStats(ctx context.Context, groupID uint) (KeyStat
 		return KeyStats{}, fmt.Errorf("failed to get active keys: %w", err)
 	}
 
+	if err := s.db.WithContext(ctx).Model(&models.APIKey{}).
+		Where("group_id = ? AND status = ?", groupID, models.KeyStatusInvalid).
+		Count(&invalidKeys).Error; err != nil {
+		return KeyStats{}, fmt.Errorf("failed to get invalid keys: %w", err)
+	}
+
+	if err := s.db.WithContext(ctx).Model(&models.APIKey{}).
+		Where("group_id = ? AND status = ?", groupID, models.KeyStatusRecorded).
+		Count(&recordedKeys).Error; err != nil {
+		return KeyStats{}, fmt.Errorf("failed to get recorded keys: %w", err)
+	}
+
 	return KeyStats{
-		TotalKeys:   totalKeys,
-		ActiveKeys:  activeKeys,
-		InvalidKeys: totalKeys - activeKeys,
+		TotalKeys:    totalKeys,
+		ActiveKeys:   activeKeys,
+		InvalidKeys:  invalidKeys,
+		RecordedKeys: recordedKeys,
 	}, nil
 }
 

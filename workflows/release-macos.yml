@@ -1,4 +1,4 @@
-name: Release Linux Build
+name: Release MacOS Build
 permissions:
   contents: write
 
@@ -8,7 +8,7 @@ on:
       - "*"
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,20 +29,24 @@ jobs:
           go-version: "1.25.x"
           cache: true
           cache-dependency-path: go.sum
-      - name: Build Backend for amd64
+      - name: Build Backend arm64
         run: |
           go mod download
-          go build -ldflags "-s -w -X gpt-load/internal/version.Version=${{ github.ref_name }}" -o gpt-load-linux-amd64
-      - name: Build Backend for arm64
+          go build -ldflags "-s -w -X h-load/internal/version.Version=${{ github.ref_name }}" -o h-load-macos-arm64
+        env:
+          CGO_ENABLED: 0
+
+      - name: Build Backend amd64
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X gpt-load/internal/version.Version=${{ github.ref_name }}" -o gpt-load-linux-arm64
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X h-load/internal/version.Version=${{ github.ref_name }}" -o h-load-macos-amd64
+
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            gpt-load-linux-amd64
-            gpt-load-linux-arm64
+            h-load-macos-arm64
+            h-load-macos-amd64
           draft: true
           generate_release_notes: true
         env:

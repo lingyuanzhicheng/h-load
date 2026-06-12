@@ -3,10 +3,10 @@ package keypool
 import (
 	"context"
 	"fmt"
-	"gpt-load/internal/channel"
-	"gpt-load/internal/config"
-	"gpt-load/internal/encryption"
-	"gpt-load/internal/models"
+	"h-load/internal/channel"
+	"h-load/internal/config"
+	"h-load/internal/encryption"
+	"h-load/internal/models"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -86,6 +86,23 @@ func (s *KeyValidator) ValidateSingleKey(key *models.APIKey, group *models.Group
 	}).Debug("Key validation successful")
 
 	return true, nil
+}
+
+// ValidateCandidateKey validates a key without updating database/cache status.
+func (s *KeyValidator) ValidateCandidateKey(keyValue string, group *models.Group) (bool, error) {
+	if group.EffectiveConfig.AppUrl == "" {
+		group.EffectiveConfig = s.SettingsManager.GetEffectiveConfig(group.Config)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(group.EffectiveConfig.KeyValidationTimeoutSeconds)*time.Second)
+	defer cancel()
+
+	ch, err := s.channelFactory.GetChannel(group)
+	if err != nil {
+		return false, fmt.Errorf("failed to get channel for group %s: %w", group.Name, err)
+	}
+
+	apiKey := &models.APIKey{KeyValue: keyValue, GroupID: group.ID, Status: models.KeyStatusRecorded}
+	return ch.ValidateKey(ctx, apiKey, group)
 }
 
 // TestMultipleKeys performs a synchronous validation for a list of key values within a specific group.

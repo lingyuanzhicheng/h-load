@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"gpt-load/internal/store"
+	"h-load/internal/store"
 
 	"github.com/sirupsen/logrus"
 )

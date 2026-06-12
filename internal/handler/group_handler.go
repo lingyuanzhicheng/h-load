@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	app_errors "gpt-load/internal/errors"
-	"gpt-load/internal/i18n"
-	"gpt-load/internal/models"
-	"gpt-load/internal/response"
-	"gpt-load/internal/services"
+	app_errors "h-load/internal/errors"
+	"h-load/internal/i18n"
+	"h-load/internal/models"
+	"h-load/internal/response"
+	"h-load/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"

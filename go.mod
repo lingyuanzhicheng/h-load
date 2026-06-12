@@ -1,4 +1,4 @@
-module gpt-load
+module h-load
 
 go 1.25.0
 
