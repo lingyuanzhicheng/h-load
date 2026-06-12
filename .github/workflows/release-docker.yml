@@ -3,10 +3,14 @@ name: Release Docker Image
 on:
   push:
     tags:
-      - "*"
+      - "**"
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release_docker:
@@ -26,7 +30,7 @@ jobs:
           context: .
           platforms: linux/amd64
           push: false
-          outputs: type=docker,dest=h-load-linux-amd64.docker.tar
+          outputs: type=docker,dest=h-load-docker-amd64.tar
           build-args: |
             VERSION=${{ github.ref_name }}
 
@@ -36,7 +40,7 @@ jobs:
           context: .
           platforms: linux/arm64
           push: false
-          outputs: type=docker,dest=h-load-linux-arm64.docker.tar
+          outputs: type=docker,dest=h-load-docker-arm64.tar
           build-args: |
             VERSION=${{ github.ref_name }}
 
@@ -44,4 +48,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            h-load-linux-*.docker.tar
+            h-load-docker-*.tar
+          draft: true
