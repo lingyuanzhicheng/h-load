@@ -2,12 +2,12 @@ package router
 
 import (
 	"embed"
-	"gpt-load/internal/handler"
-	"gpt-load/internal/i18n"
-	"gpt-load/internal/middleware"
-	"gpt-load/internal/proxy"
-	"gpt-load/internal/services"
-	"gpt-load/internal/types"
+	"h-load/internal/handler"
+	"h-load/internal/i18n"
+	"h-load/internal/middleware"
+	"h-load/internal/proxy"
+	"h-load/internal/services"
+	"h-load/internal/types"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -118,12 +118,31 @@ func registerProtectedAPIRoutes(api *gin.RouterGroup, serverHandler *handler.Ser
 		groups.DELETE("/:id", serverHandler.DeleteGroup)
 		groups.GET("/:id/stats", serverHandler.GetGroupStats)
 		groups.POST("/:id/copy", serverHandler.CopyGroup)
+		groups.GET("/:id/leak-scan/config", serverHandler.GetLeakScanConfig)
+		groups.PUT("/:id/leak-scan/config", serverHandler.SaveLeakScanConfig)
+		groups.GET("/:id/leak-scan/status", serverHandler.GetLeakScanStatus)
+		groups.POST("/:id/leak-scan/start", serverHandler.StartLeakScan)
+		groups.POST("/:id/leak-scan/stop", serverHandler.StopLeakScan)
+		groups.POST("/:id/leak-scan/resume", serverHandler.ResumeLeakScan)
+		groups.POST("/:id/leak-scan/reset", serverHandler.ResetLeakScan)
+		groups.GET("/:id/leak-scan/runs", serverHandler.ListLeakScanRuns)
+		groups.GET("/:id/leak-scan/events", serverHandler.ListLeakScanEvents)
 
 		groups.GET("/:id/sub-groups", serverHandler.GetSubGroups)
 		groups.POST("/:id/sub-groups", serverHandler.AddSubGroups)
 		groups.PUT("/:id/sub-groups/:subGroupId/weight", serverHandler.UpdateSubGroupWeight)
 		groups.DELETE("/:id/sub-groups/:subGroupId", serverHandler.DeleteSubGroup)
 		groups.GET("/:id/parent-aggregate-groups", serverHandler.GetParentAggregateGroups)
+	}
+
+	searchAccounts := api.Group("/search-accounts")
+	{
+		searchAccounts.GET("", serverHandler.ListSearchAccounts)
+		searchAccounts.POST("", serverHandler.CreateSearchAccount)
+		searchAccounts.POST("/validate", serverHandler.ValidateSearchAccounts)
+		searchAccounts.PUT("/:id", serverHandler.UpdateSearchAccount)
+		searchAccounts.POST("/:id/validate", serverHandler.ValidateSearchAccount)
+		searchAccounts.DELETE("/:id", serverHandler.DeleteSearchAccount)
 	}
 
 	// Key Management Routes

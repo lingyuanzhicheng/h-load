@@ -3,11 +3,11 @@ package keypool
 import (
 	"errors"
 	"fmt"
-	"gpt-load/internal/config"
-	"gpt-load/internal/encryption"
-	app_errors "gpt-load/internal/errors"
-	"gpt-load/internal/models"
-	"gpt-load/internal/store"
+	"h-load/internal/config"
+	"h-load/internal/encryption"
+	app_errors "h-load/internal/errors"
+	"h-load/internal/models"
+	"h-load/internal/store"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -313,6 +313,40 @@ func (p *KeyProvider) AddKeys(groupID uint, keys []models.APIKey) error {
 	})
 
 	return err
+}
+
+// UpdateKeyStatus updates a key status in DB/cache and active key list.
+func (p *KeyProvider) UpdateKeyStatus(groupID, keyID uint, status string) error {
+	activeKeysListKey := fmt.Sprintf("group:%d:active_keys", groupID)
+	keyHashKey := fmt.Sprintf("key:%d", keyID)
+
+	return p.executeTransactionWithRetry(func(tx *gorm.DB) error {
+		var key models.APIKey
+		if err := tx.Where("group_id = ?", groupID).First(&key, keyID).Error; err != nil {
+			return err
+		}
+
+		updates := map[string]any{"status": status}
+		if status == models.KeyStatusActive {
+			updates["failure_count"] = 0
+		}
+		if err := tx.Model(&key).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		if err := p.store.HSet(keyHashKey, updates); err != nil {
+			return err
+		}
+		if err := p.store.LRem(activeKeysListKey, 0, keyID); err != nil {
+			return err
+		}
+		if status == models.KeyStatusActive {
+			if err := p.store.LPush(activeKeysListKey, keyID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // RemoveKeys 批量从池和数据库中移除 Key。

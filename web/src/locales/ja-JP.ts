@@ -59,7 +59,7 @@ export default {
     deselectAll: "選択を解除",
   },
   login: {
-    title: "GPT Load",
+    title: "H Load",
     subtitle: "インテリジェント負荷分散管理プラットフォーム",
     welcome: "おかえりなさい",
     welcomeDesc: "続行するには認証キーを入力してください",
@@ -73,6 +73,7 @@ export default {
     dashboard: "ダッシュボード",
     keys: "キー管理",
     logs: "ログ",
+    searchAccounts: "アカウント",
     settings: "システム設定",
     logout: "ログアウト",
   },

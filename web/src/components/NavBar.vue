@@ -20,6 +20,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     renderMenuItem("dashboard", t("nav.dashboard"), "📊"),
     renderMenuItem("keys", t("nav.keys"), "🔑"),
     renderMenuItem("logs", t("nav.logs"), "📋"),
+    renderMenuItem("search-accounts", t("nav.searchAccounts"), "🐙"),
     renderMenuItem("settings", t("nav.settings"), "⚙️"),
   ];
 

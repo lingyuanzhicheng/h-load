@@ -59,7 +59,7 @@ export default {
     deselectAll: "Deselect All",
   },
   login: {
-    title: "GPT Load",
+    title: "H Load",
     subtitle: "Intelligent Load Balancing Platform",
     welcome: "Welcome Back",
     welcomeDesc: "Please enter your auth key to continue",
@@ -73,6 +73,7 @@ export default {
     dashboard: "Dashboard",
     keys: "Keys",
     logs: "Logs",
+    searchAccounts: "Accounts",
     settings: "Settings",
     logout: "Logout",
   },

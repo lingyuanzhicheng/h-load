@@ -1,8 +1,8 @@
 package models
 
 import (
-	"gpt-load/internal/failover"
-	"gpt-load/internal/types"
+	"h-load/internal/failover"
+	"h-load/internal/types"
 	"time"
 
 	"gorm.io/datatypes"
@@ -10,8 +10,9 @@ import (
 
 // Key状态
 const (
-	KeyStatusActive  = "active"
-	KeyStatusInvalid = "invalid"
+	KeyStatusRecorded = "recorded"
+	KeyStatusActive   = "active"
+	KeyStatusInvalid  = "invalid"
 )
 
 // SystemSetting 对应 system_settings 表
@@ -205,4 +206,83 @@ type GroupHourlyStat struct {
 	FailureCount int64     `gorm:"not null;default:0" json:"failure_count"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+const (
+	SearchAccountTypeGitHubAPI  = "github_api"
+	SearchAccountTypeGitHubWeb  = "github_web"
+	SearchAccountStatusActive   = "active"
+	SearchAccountStatusInactive = "inactive"
+
+	LeakScanAccountStrategyRoundRobin = "round_robin"
+	LeakScanAccountStrategyRandom     = "random"
+
+	LeakScanStatusIdle        = "idle"
+	LeakScanStatusRunning     = "running"
+	LeakScanStatusCompleted   = "completed"
+	LeakScanStatusInterrupted = "interrupted"
+	LeakScanStatusFailed      = "failed"
+)
+
+type GitHubSearchAccount struct {
+	ID           uint       `gorm:"primaryKey;autoIncrement" json:"id"`
+	Type         string     `gorm:"type:varchar(50);not null;index" json:"type"`
+	Credential   string     `gorm:"type:text;not null" json:"credential"`
+	DeviceID     string     `gorm:"type:text;not null" json:"device_id"`
+	Username     string     `gorm:"type:varchar(255);index" json:"username"`
+	RequestCount int64      `gorm:"not null;default:0" json:"request_count"`
+	FailureCount int64      `gorm:"not null;default:0" json:"failure_count"`
+	Status       string     `gorm:"type:varchar(50);not null;default:'active';index" json:"status"`
+	LastUsedAt   *time.Time `json:"last_used_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+type GroupLeakScanConfig struct {
+	ID              uint           `gorm:"primaryKey;autoIncrement" json:"id"`
+	GroupID         uint           `gorm:"not null;uniqueIndex" json:"group_id"`
+	Enabled         bool           `gorm:"not null;default:false" json:"enabled"`
+	SourceTypes     datatypes.JSON `gorm:"type:json" json:"source_types"`
+	AccountStrategy string         `gorm:"type:varchar(50);not null;default:'round_robin'" json:"account_strategy"`
+	AccountIDs      datatypes.JSON `gorm:"type:json" json:"account_ids"`
+	MaxPages        int            `gorm:"not null;default:0" json:"max_pages"`
+	DeepIndex       bool           `gorm:"not null;default:false" json:"deep_index"`
+	SearchRules     datatypes.JSON `gorm:"type:json" json:"search_rules"`
+	MatchRules      datatypes.JSON `gorm:"type:json" json:"match_rules"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+
+	Group Group `gorm:"foreignKey:GroupID" json:"group,omitempty"`
+}
+
+type GroupLeakScanRun struct {
+	ID                  uint       `gorm:"primaryKey;autoIncrement" json:"id"`
+	GroupID             uint       `gorm:"not null;index" json:"group_id"`
+	Status              string     `gorm:"type:varchar(50);not null;default:'idle';index" json:"status"`
+	ExpectedSearchItems int64      `gorm:"not null;default:0" json:"expected_search_items"`
+	ExpectedPages       int64      `gorm:"not null;default:0" json:"expected_pages"`
+	ProcessedPages      int64      `gorm:"not null;default:0" json:"processed_pages"`
+	CurrentQuery        string     `gorm:"type:text" json:"current_query"`
+	CollectedCount      int64      `gorm:"not null;default:0" json:"collected_count"`
+	DuplicateCount      int64      `gorm:"not null;default:0" json:"duplicate_count"`
+	ValidCount          int64      `gorm:"not null;default:0" json:"valid_count"`
+	InvalidCount        int64      `gorm:"not null;default:0" json:"invalid_count"`
+	ImportedCount       int64      `gorm:"not null;default:0" json:"imported_count"`
+	FailedCount         int64      `gorm:"not null;default:0" json:"failed_count"`
+	ErrorMessage        string     `gorm:"type:text" json:"error_message"`
+	StartedAt           *time.Time `json:"started_at"`
+	FinishedAt          *time.Time `json:"finished_at"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+}
+
+type GroupLeakScanEvent struct {
+	ID        uint           `gorm:"primaryKey;autoIncrement" json:"id"`
+	RunID     uint           `gorm:"not null;index" json:"run_id"`
+	GroupID   uint           `gorm:"not null;index" json:"group_id"`
+	EventType string         `gorm:"type:varchar(80);not null;index" json:"event_type"`
+	Level     string         `gorm:"type:varchar(20);not null;default:'info'" json:"level"`
+	Message   string         `gorm:"type:text;not null" json:"message"`
+	Payload   datatypes.JSON `gorm:"type:json" json:"payload"`
+	CreatedAt time.Time      `gorm:"not null;index" json:"created_at"`
 }

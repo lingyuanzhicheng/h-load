@@ -59,7 +59,7 @@ export default {
     deselectAll: "取消选中",
   },
   login: {
-    title: "GPT Load",
+    title: "H Load",
     subtitle: "智能负载均衡管理平台",
     welcome: "欢迎回来",
     welcomeDesc: "请输入您的授权密钥以继续",
@@ -71,9 +71,10 @@ export default {
   },
   nav: {
     dashboard: "仪表盘",
-    keys: "密钥管理",
+    keys: "密钥",
     logs: "日志",
-    settings: "系统设置",
+    searchAccounts: "账户",
+    settings: "设置",
     logout: "退出登录",
   },
   dashboard: {

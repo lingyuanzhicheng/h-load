@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getDashboardChart, getGroupList } from "@/api/dashboard";
-import type { ChartData } from "@/types/models";
+import type { ChartData, Group } from "@/types/models";
 import { getGroupDisplayName } from "@/utils/display";
 import { NSelect, NSpin } from "naive-ui";
 import { computed, onMounted, ref, watch } from "vue";
@@ -330,7 +330,7 @@ const fetchGroups = async () => {
     const response = await getGroupList();
     groupOptions.value = [
       { label: t("charts.allGroups"), value: null },
-      ...response.data.map(group => ({
+      ...response.data.map((group: Group) => ({
         label: getGroupDisplayName(group),
         value: group.id || 0,
       })),

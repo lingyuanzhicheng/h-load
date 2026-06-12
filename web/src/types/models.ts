@@ -6,7 +6,7 @@ export interface ApiResponse<T> {
 }
 
 // 密钥状态
-export type KeyStatus = "active" | "invalid" | undefined;
+export type KeyStatus = "recorded" | "active" | "invalid" | undefined;
 
 // 分组类型
 export type GroupType = "standard" | "aggregate";
@@ -107,6 +107,7 @@ export interface KeyStats {
   total_keys: number;
   active_keys: number;
   invalid_keys: number;
+  recorded_keys: number;
 }
 
 // RequestStats defines the statistics for requests over a period.
@@ -117,6 +118,68 @@ export interface RequestStats {
 }
 
 export type TaskType = "KEY_VALIDATION" | "KEY_IMPORT" | "KEY_DELETE";
+
+export type SearchAccountType = "github_api" | "github_web";
+export type SearchAccountStatus = "active" | "inactive";
+
+export interface GitHubSearchAccount {
+  id: number;
+  type: SearchAccountType;
+  credential: string;
+  device_id: string;
+  username: string;
+  request_count: number;
+  failure_count: number;
+  status: SearchAccountStatus;
+  last_used_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeakScanConfig {
+  enabled: boolean;
+  source_types: SearchAccountType[];
+  account_strategy: "round_robin" | "random";
+  account_ids: number[];
+  max_pages: number;
+  deep_index: boolean;
+  search_rules: string[];
+  match_rules: string[];
+}
+
+export type LeakScanRunStatus = "idle" | "running" | "completed" | "interrupted" | "failed";
+
+export interface GroupLeakScanRun {
+  id: number;
+  group_id: number;
+  status: LeakScanRunStatus;
+  expected_search_items: number;
+  expected_pages: number;
+  processed_pages: number;
+  current_query: string;
+  collected_count: number;
+  duplicate_count: number;
+  valid_count: number;
+  invalid_count: number;
+  imported_count: number;
+  failed_count: number;
+  error_message: string;
+  started_at?: string;
+  finished_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroupLeakScanEvent {
+  id: number;
+  run_id: number;
+  group_id: number;
+  event_type: string;
+  level: string;
+  message: string;
+  payload?: Record<string, unknown>;
+  created_at: string;
+}
 
 export interface KeyValidationResult {
   invalid_keys: number;

@@ -1,8 +1,8 @@
 package handler
 
 import (
-	app_errors "gpt-load/internal/errors"
-	"gpt-load/internal/response"
+	app_errors "h-load/internal/errors"
+	"h-load/internal/response"
 
 	"github.com/gin-gonic/gin"
 )

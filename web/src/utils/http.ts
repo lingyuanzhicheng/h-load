@@ -6,12 +6,6 @@ import { appState } from "./app-state";
 // 定义不需要显示 loading 的 API 地址列表
 const noLoadingUrls = ["/tasks/status"];
 
-declare module "axios" {
-  interface AxiosRequestConfig {
-    hideMessage?: boolean;
-  }
-}
-
 const http = axios.create({
   baseURL: "/api",
   timeout: 60000,
@@ -26,10 +20,12 @@ http.interceptors.request.use(config => {
   }
   const authKey = localStorage.getItem("authKey");
   if (authKey) {
+    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${authKey}`;
   }
   // 添加语言头
   const locale = localStorage.getItem("locale") || "zh-CN";
+  config.headers = config.headers || {};
   config.headers["Accept-Language"] = locale;
   return config;
 });

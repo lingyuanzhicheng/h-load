@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"gpt-load/internal/types"
+	"h-load/internal/types"
 	"log"
 	"os"
 	"path/filepath"

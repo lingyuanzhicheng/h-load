@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	app_errors "gpt-load/internal/errors"
-	"gpt-load/internal/response"
-	"gpt-load/internal/services"
-	"gpt-load/internal/types"
+	app_errors "h-load/internal/errors"
+	"h-load/internal/response"
+	"h-load/internal/services"
+	"h-load/internal/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"

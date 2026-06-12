@@ -2,19 +2,19 @@
 package container
 
 import (
-	"gpt-load/internal/app"
-	"gpt-load/internal/channel"
-	"gpt-load/internal/config"
-	"gpt-load/internal/db"
-	"gpt-load/internal/encryption"
-	"gpt-load/internal/handler"
-	"gpt-load/internal/httpclient"
-	"gpt-load/internal/keypool"
-	"gpt-load/internal/proxy"
-	"gpt-load/internal/router"
-	"gpt-load/internal/services"
-	"gpt-load/internal/store"
-	"gpt-load/internal/types"
+	"h-load/internal/app"
+	"h-load/internal/channel"
+	"h-load/internal/config"
+	"h-load/internal/db"
+	"h-load/internal/encryption"
+	"h-load/internal/handler"
+	"h-load/internal/httpclient"
+	"h-load/internal/keypool"
+	"h-load/internal/proxy"
+	"h-load/internal/router"
+	"h-load/internal/services"
+	"h-load/internal/store"
+	"h-load/internal/types"
 
 	"go.uber.org/dig"
 )
@@ -65,6 +65,12 @@ func BuildContainer() (*dig.Container, error) {
 		return nil, err
 	}
 	if err := container.Provide(services.NewLogService); err != nil {
+		return nil, err
+	}
+	if err := container.Provide(services.NewSearchAccountService); err != nil {
+		return nil, err
+	}
+	if err := container.Provide(services.NewGroupLeakScanService); err != nil {
 		return nil, err
 	}
 	if err := container.Provide(services.NewLogCleanupService); err != nil {
