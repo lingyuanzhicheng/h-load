@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// NewCronChecker is responsible for periodically validating invalid keys.
+// NewCronChecker is responsible for periodically validating limited keys.
 type CronChecker struct {
 	DB              *gorm.DB
 	SettingsManager *config.SystemSettingsManager
@@ -113,28 +113,28 @@ func (s *CronChecker) submitValidationJobs() {
 	wg.Wait()
 }
 
-// validateGroupKeys validates all invalid keys for a single group concurrently.
+// validateGroupKeys validates all limited keys for a single group concurrently.
 func (s *CronChecker) validateGroupKeys(group *models.Group) {
 	groupProcessStart := time.Now()
 
-	var invalidKeys []models.APIKey
-	err := s.DB.Where("group_id = ? AND status = ?", group.ID, models.KeyStatusInvalid).Find(&invalidKeys).Error
+	var limitedKeys []models.APIKey
+	err := s.DB.Where("group_id = ? AND status = ?", group.ID, models.KeyStatusLimited).Find(&limitedKeys).Error
 	if err != nil {
-		logrus.Errorf("CronChecker: Failed to get invalid keys for group %s: %v", group.Name, err)
+		logrus.Errorf("CronChecker: Failed to get limited keys for group %s: %v", group.Name, err)
 		return
 	}
 
-	if len(invalidKeys) == 0 {
+	if len(limitedKeys) == 0 {
 		if err := s.DB.Model(group).Update("last_validated_at", time.Now()).Error; err != nil {
 			logrus.Errorf("CronChecker: Failed to update last_validated_at for group %s: %v", group.Name, err)
 		}
-		logrus.Infof("CronChecker: Group '%s' has no invalid keys to check.", group.Name)
+		logrus.Infof("CronChecker: Group '%s' has no limited keys to check.", group.Name)
 		return
 	}
 
 	var becameValidCount int32
 	var keyWg sync.WaitGroup
-	jobs := make(chan *models.APIKey, len(invalidKeys))
+	jobs := make(chan *models.APIKey, len(limitedKeys))
 
 	concurrency := group.EffectiveConfig.KeyValidationConcurrency
 	for range concurrency {
@@ -171,9 +171,9 @@ func (s *CronChecker) validateGroupKeys(group *models.Group) {
 	}
 
 DistributeLoop:
-	for i := range invalidKeys {
+	for i := range limitedKeys {
 		select {
-		case jobs <- &invalidKeys[i]:
+		case jobs <- &limitedKeys[i]:
 		case <-s.stopChan:
 			break DistributeLoop
 		}
@@ -190,7 +190,7 @@ DistributeLoop:
 	logrus.Infof(
 		"CronChecker: Group '%s' validation finished. Total checked: %d, became valid: %d. Duration: %s.",
 		group.Name,
-		len(invalidKeys),
+		len(limitedKeys),
 		becameValidCount,
 		duration.String(),
 	)

@@ -48,7 +48,7 @@ const props = defineProps<Props>();
 const keys = ref<KeyRow[]>([]);
 const loading = ref(false);
 const searchText = ref("");
-const statusFilter = ref<"all" | "recorded" | "active" | "invalid">("all");
+const statusFilter = ref<"all" | "recorded" | "active" | "invalid" | "limited">("all");
 const currentPage = ref(1);
 const pageSize = ref(12);
 const total = ref(0);
@@ -62,6 +62,7 @@ const statusOptions = [
   { label: "记录", value: "recorded" },
   { label: t("keys.valid"), value: "active" },
   { label: t("keys.invalid"), value: "invalid" },
+  { label: t("keys.limited"), value: "limited" },
 ];
 
 // 更多操作下拉菜单选项
@@ -69,11 +70,18 @@ const moreOptions = [
   { label: t("keys.exportAllKeys"), key: "copyAll" },
   { label: t("keys.exportValidKeys"), key: "copyValid" },
   { label: t("keys.exportInvalidKeys"), key: "copyInvalid" },
+  { label: t("keys.exportLimitedKeys"), key: "copyLimited" },
   { type: "divider" },
   { label: t("keys.restoreAllInvalidKeys"), key: "restoreAll" },
+  { label: t("keys.restoreAllLimitedKeys"), key: "restoreAllLimited" },
   {
     label: t("keys.clearAllInvalidKeys"),
     key: "clearInvalid",
+    props: { style: { color: "#d03050" } },
+  },
+  {
+    label: t("keys.clearAllLimitedKeys"),
+    key: "clearLimited",
     props: { style: { color: "#d03050" } },
   },
   {
@@ -85,6 +93,7 @@ const moreOptions = [
   { label: t("keys.validateAllKeys"), key: "validateAll" },
   { label: t("keys.validateValidKeys"), key: "validateActive" },
   { label: t("keys.validateInvalidKeys"), key: "validateInvalid" },
+  { label: t("keys.validateLimitedKeys"), key: "validateLimited" },
 ];
 
 let testingMsg: MessageReactive | null = null;
@@ -170,8 +179,14 @@ function handleMoreAction(key: string) {
     case "copyInvalid":
       copyInvalidKeys();
       break;
+    case "copyLimited":
+      copyLimitedKeys();
+      break;
     case "restoreAll":
       restoreAllInvalid();
+      break;
+    case "restoreAllLimited":
+      restoreAllLimited();
       break;
     case "validateAll":
       validateKeys("all");
@@ -182,8 +197,14 @@ function handleMoreAction(key: string) {
     case "validateInvalid":
       validateKeys("invalid");
       break;
+    case "validateLimited":
+      validateKeys("limited");
+      break;
     case "clearInvalid":
       clearAllInvalid();
+      break;
+    case "clearLimited":
+      clearAllLimited();
       break;
     case "clearAll":
       clearAll();
@@ -292,7 +313,6 @@ function toggleKeyVisibility(key: KeyRow) {
   key.is_visible = !key.is_visible;
 }
 
-// 获取要显示的值（备注优先，否则显示密钥）
 function getDisplayValue(key: KeyRow): string {
   if (key.notes && !key.is_visible) {
     return key.notes;
@@ -300,14 +320,12 @@ function getDisplayValue(key: KeyRow): string {
   return key.is_visible ? key.key_value : maskKey(key.key_value);
 }
 
-// 编辑密钥备注
 function editKeyNotes(key: KeyRow) {
   editingKey.value = key;
   editingNotes.value = key.notes || "";
   notesDialogShow.value = true;
 }
 
-// 保存备注
 async function saveKeyNotes() {
   if (!editingKey.value) {
     return;
@@ -325,7 +343,8 @@ async function saveKeyNotes() {
 }
 
 async function restoreKey(key: KeyRow) {
-  if (!props.selectedGroup?.id || !key.key_value || isRestoring.value) {
+  const group = props.selectedGroup;
+  if (!group?.id || !key.key_value || isRestoring.value) {
     return;
   }
 
@@ -335,18 +354,13 @@ async function restoreKey(key: KeyRow) {
     positiveText: t("common.confirm"),
     negativeText: t("common.cancel"),
     onPositiveClick: async () => {
-      if (!props.selectedGroup?.id) {
-        return;
-      }
-
       isRestoring.value = true;
       d.loading = true;
 
       try {
-        await keysApi.restoreKeys(props.selectedGroup.id, key.key_value);
+        await keysApi.restoreKeys(group.id!, key.key_value);
         await loadKeys();
-        // 触发同步操作刷新
-        triggerSyncOperationRefresh(props.selectedGroup.name, "RESTORE_SINGLE");
+        triggerSyncOperationRefresh(group.name, "RESTORE_SINGLE");
       } catch (_error) {
         console.error("Restore failed");
       } finally {
@@ -358,7 +372,8 @@ async function restoreKey(key: KeyRow) {
 }
 
 async function deleteKey(key: KeyRow) {
-  if (!props.selectedGroup?.id || !key.key_value || isDeling.value) {
+  const group = props.selectedGroup;
+  if (!group?.id || !key.key_value || isDeling.value) {
     return;
   }
 
@@ -368,18 +383,13 @@ async function deleteKey(key: KeyRow) {
     positiveText: t("common.confirm"),
     negativeText: t("common.cancel"),
     onPositiveClick: async () => {
-      if (!props.selectedGroup?.id) {
-        return;
-      }
-
       d.loading = true;
       isDeling.value = true;
 
       try {
-        await keysApi.deleteKeys(props.selectedGroup.id, key.key_value);
+        await keysApi.deleteKeys(group.id!, key.key_value);
         await loadKeys();
-        // 触发同步操作刷新
-        triggerSyncOperationRefresh(props.selectedGroup.name, "DELETE_SINGLE");
+        triggerSyncOperationRefresh(group.name, "DELETE_SINGLE");
       } catch (_error) {
         console.error("Delete failed");
       } finally {
@@ -424,6 +434,8 @@ function getStatusClass(status: KeyStatus): string {
       return "status-recorded";
     case "invalid":
       return "status-invalid";
+    case "limited":
+      return "status-limited";
     default:
       return "status-unknown";
   }
@@ -453,6 +465,14 @@ async function copyInvalidKeys() {
   keysApi.exportKeys(props.selectedGroup.id, "invalid");
 }
 
+async function copyLimitedKeys() {
+  if (!props.selectedGroup?.id) {
+    return;
+  }
+
+  keysApi.exportKeys(props.selectedGroup.id, "limited");
+}
+
 async function restoreAllInvalid() {
   if (!props.selectedGroup?.id || isRestoring.value) {
     return;
@@ -473,7 +493,6 @@ async function restoreAllInvalid() {
       try {
         await keysApi.restoreAllInvalidKeys(props.selectedGroup.id);
         await loadKeys();
-        // 触发同步操作刷新
         triggerSyncOperationRefresh(props.selectedGroup.name, "RESTORE_ALL_INVALID");
       } catch (_error) {
         console.error("Restore failed");
@@ -485,32 +504,67 @@ async function restoreAllInvalid() {
   });
 }
 
-async function validateKeys(status: "all" | "active" | "invalid") {
-  if (!props.selectedGroup?.id || testingMsg) {
+async function restoreAllLimited() {
+  if (!props.selectedGroup?.id || isRestoring.value) {
     return;
   }
 
-  let statusText = t("common.all");
-  if (status === "active") {
-    statusText = t("keys.valid");
-  } else if (status === "invalid") {
-    statusText = t("keys.invalid");
-  }
+  const d = dialog.warning({
+    title: t("keys.restoreKeys"),
+    content: t("keys.confirmRestoreAllLimited"),
+    positiveText: t("common.confirm"),
+    negativeText: t("common.cancel"),
+    onPositiveClick: async () => {
+      if (!props.selectedGroup?.id) {
+        return;
+      }
 
-  testingMsg = window.$message.info(t("keys.validatingKeysMsg", { type: statusText }), {
-    duration: 0,
+      isRestoring.value = true;
+      d.loading = true;
+      try {
+        await keysApi.restoreAllLimitedKeys(props.selectedGroup.id);
+        await loadKeys();
+        triggerSyncOperationRefresh(props.selectedGroup.name, "RESTORE_ALL_LIMITED");
+      } catch (_error) {
+        console.error("Restore failed");
+      } finally {
+        d.loading = false;
+        isRestoring.value = false;
+      }
+    },
   });
+}
 
-  try {
-    await keysApi.validateGroupKeys(props.selectedGroup.id, status === "all" ? undefined : status);
-    localStorage.removeItem("last_closed_task");
-    appState.taskPollingTrigger++;
-  } catch (_error) {
-    console.error("Test failed");
-  } finally {
-    testingMsg?.destroy();
-    testingMsg = null;
+async function clearAllLimited() {
+  if (!props.selectedGroup?.id || isDeling.value) {
+    return;
   }
+
+  const d = dialog.warning({
+    title: t("keys.clearKeys"),
+    content: t("keys.confirmClearLimitedKeys"),
+    positiveText: t("common.confirm"),
+    negativeText: t("common.cancel"),
+    onPositiveClick: async () => {
+      if (!props.selectedGroup?.id) {
+        return;
+      }
+
+      isDeling.value = true;
+      d.loading = true;
+      try {
+        const { data } = await keysApi.clearAllLimitedKeys(props.selectedGroup.id);
+        window.$message.success(data?.message || t("keys.clearSuccess"));
+        await loadKeys();
+        triggerSyncOperationRefresh(props.selectedGroup.name, "CLEAR_ALL_LIMITED");
+      } catch (_error) {
+        console.error("Delete failed");
+      } finally {
+        d.loading = false;
+        isDeling.value = false;
+      }
+    },
+  });
 }
 
 async function clearAllInvalid() {
@@ -605,6 +659,36 @@ async function clearAll() {
       });
     },
   });
+}
+
+async function validateKeys(status: "all" | "active" | "invalid" | "limited") {
+  if (!props.selectedGroup?.id || testingMsg) {
+    return;
+  }
+
+  let statusText = t("common.all");
+  if (status === "active") {
+    statusText = t("keys.valid");
+  } else if (status === "invalid") {
+    statusText = t("keys.invalid");
+  } else if (status === "limited") {
+    statusText = t("keys.limited");
+  }
+
+  testingMsg = window.$message.info(t("keys.validatingKeysMsg", { type: statusText }), {
+    duration: 0,
+  });
+
+  try {
+    await keysApi.validateGroupKeys(props.selectedGroup.id, status === "all" ? undefined : status);
+    localStorage.removeItem("last_closed_task");
+    appState.taskPollingTrigger++;
+  } catch (_error) {
+    console.error("Test failed");
+  } finally {
+    testingMsg?.destroy();
+    testingMsg = null;
+  }
 }
 
 function changePage(page: number) {
@@ -711,6 +795,12 @@ function resetPage() {
                     <n-icon :component="AlertCircleOutline" />
                   </template>
                   记录
+                </n-tag>
+                <n-tag v-else-if="key.status === 'limited'" type="warning" :bordered="false" round>
+                  <template #icon>
+                    <n-icon :component="AlertCircleOutline" />
+                  </template>
+                  {{ t("keys.limitedShort") }}
                 </n-tag>
                 <n-tag v-else :bordered="false" round>
                   <template #icon>
@@ -1077,6 +1167,17 @@ function resetPage() {
   border-color: var(--invalid-border);
   background: var(--card-bg-solid);
   opacity: 0.85;
+}
+
+.key-card.status-limited {
+  border-color: #e6a23c;
+  background: #fef6ec;
+  border-width: 1.5px;
+}
+
+:root.dark .key-card.status-limited {
+  border-color: #e6a23c;
+  background: #2b2111;
 }
 
 .key-card.status-error {

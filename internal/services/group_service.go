@@ -137,6 +137,7 @@ type KeyStats struct {
 	ActiveKeys   int64 `json:"active_keys"`
 	InvalidKeys  int64 `json:"invalid_keys"`
 	RecordedKeys int64 `json:"recorded_keys"`
+	LimitedKeys  int64 `json:"limited_keys"`
 }
 
 // RequestStats captures request success and failure ratios over a time window.
@@ -713,11 +714,19 @@ func (s *GroupService) fetchKeyStats(ctx context.Context, groupID uint) (KeyStat
 		return KeyStats{}, fmt.Errorf("failed to get recorded keys: %w", err)
 	}
 
+	var limitedKeys int64
+	if err := s.db.WithContext(ctx).Model(&models.APIKey{}).
+		Where("group_id = ? AND status = ?", groupID, models.KeyStatusLimited).
+		Count(&limitedKeys).Error; err != nil {
+		return KeyStats{}, fmt.Errorf("failed to get limited keys: %w", err)
+	}
+
 	return KeyStats{
 		TotalKeys:    totalKeys,
 		ActiveKeys:   activeKeys,
 		InvalidKeys:  invalidKeys,
 		RecordedKeys: recordedKeys,
+		LimitedKeys:  limitedKeys,
 	}, nil
 }
 

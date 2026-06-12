@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"h-load/internal/config"
 	"h-load/internal/httpclient"
+	app_errors "h-load/internal/errors"
 	"io"
 	"math"
 	"math/rand"
@@ -18,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	app_errors "h-load/internal/errors"
 	"h-load/internal/models"
 
 	"github.com/sirupsen/logrus"
@@ -547,6 +548,13 @@ func (s *GroupLeakScanService) processCandidate(ctx context.Context, runID uint,
 		}
 		_ = s.incrementRun(runID, map[string]any{"valid_count": gorm.Expr("valid_count + ?", 1), "imported_count": gorm.Expr("imported_count + ?", 1)})
 		return s.logEvent(ctx, runID, group.ID, "key_marked_active", "info", "模型检测通过，key 已标记为有效", map[string]any{"key_id": apiKey.ID, "url": candidate.URL, "line": candidate.Line})
+	}
+	if errors.Is(validationErr, app_errors.ErrKeyRateLimited) {
+		if err := s.keyService.KeyProvider.UpdateKeyStatus(group.ID, apiKey.ID, models.KeyStatusLimited); err != nil {
+			return err
+		}
+		_ = s.incrementRun(runID, map[string]any{"valid_count": gorm.Expr("valid_count + ?", 1), "imported_count": gorm.Expr("imported_count + ?", 1)})
+		return s.logEvent(ctx, runID, group.ID, "key_marked_limited", "info", "key 已被限流，标记为受限状态", map[string]any{"key_id": apiKey.ID, "url": candidate.URL, "line": candidate.Line})
 	}
 	if err := s.keyService.KeyProvider.UpdateKeyStatus(group.ID, apiKey.ID, models.KeyStatusInvalid); err != nil {
 		return err

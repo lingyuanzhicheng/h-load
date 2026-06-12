@@ -6,7 +6,7 @@ export interface ApiResponse<T> {
 }
 
 // 密钥状态
-export type KeyStatus = "recorded" | "active" | "invalid" | undefined;
+export type KeyStatus = "recorded" | "active" | "invalid" | "limited" | undefined;
 
 // 分组类型
 export type GroupType = "standard" | "aggregate";
@@ -108,6 +108,7 @@ export interface KeyStats {
   active_keys: number;
   invalid_keys: number;
   recorded_keys: number;
+  limited_keys: number;
 }
 
 // RequestStats defines the statistics for requests over a period.

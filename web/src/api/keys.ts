@@ -205,10 +205,26 @@ export const keysApi = {
     return http.post("/keys/restore-all-invalid", { group_id });
   },
 
+  // 恢复所有受限密钥
+  restoreAllLimitedKeys(group_id: number): Promise<void> {
+    return http.post("/keys/restore-all-limited", { group_id });
+  },
+
   // 清空所有无效密钥
   clearAllInvalidKeys(group_id: number): Promise<{ data: { message: string } }> {
     return http.post(
       "/keys/clear-all-invalid",
+      { group_id },
+      {
+        hideMessage: true,
+      }
+    );
+  },
+
+  // 清空所有受限密钥
+  clearAllLimitedKeys(group_id: number): Promise<{ data: { message: string } }> {
+    return http.post(
+      "/keys/clear-all-limited",
       { group_id },
       {
         hideMessage: true,
@@ -228,7 +244,7 @@ export const keysApi = {
   },
 
   // 导出密钥
-  exportKeys(groupId: number, status: "all" | "active" | "invalid" = "all"): void {
+  exportKeys(groupId: number, status: "all" | "active" | "invalid" | "limited" = "all"): void {
     const authKey = localStorage.getItem("authKey");
     if (!authKey) {
       window.$message.error(i18n.global.t("auth.noAuthKeyFound"));
@@ -257,7 +273,7 @@ export const keysApi = {
   // 验证分组密钥
   async validateGroupKeys(
     groupId: number,
-    status?: "active" | "invalid"
+    status?: "active" | "invalid" | "limited"
   ): Promise<{
     is_running: boolean;
     group_name: string;

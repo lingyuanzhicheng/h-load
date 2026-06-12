@@ -202,7 +202,7 @@ func (s *Server) ListKeysInGroup(c *gin.Context) {
 	}
 
 	statusFilter := c.Query("status")
-	if statusFilter != "" && statusFilter != models.KeyStatusActive && statusFilter != models.KeyStatusInvalid && statusFilter != models.KeyStatusRecorded {
+	if statusFilter != "" && statusFilter != models.KeyStatusActive && statusFilter != models.KeyStatusInvalid && statusFilter != models.KeyStatusRecorded && statusFilter != models.KeyStatusLimited {
 		response.ErrorI18nFromAPIError(c, app_errors.ErrValidation, "validation.invalid_status_filter")
 		return
 	}
@@ -377,7 +377,7 @@ func (s *Server) ValidateGroupKeys(c *gin.Context) {
 	}
 
 	// Validate status if provided
-	if req.Status != "" && req.Status != models.KeyStatusActive && req.Status != models.KeyStatusInvalid && req.Status != models.KeyStatusRecorded {
+	if req.Status != "" && req.Status != models.KeyStatusActive && req.Status != models.KeyStatusInvalid && req.Status != models.KeyStatusRecorded && req.Status != models.KeyStatusLimited {
 		response.ErrorI18nFromAPIError(c, app_errors.ErrValidation, "validation.invalid_status_value")
 		return
 	}
@@ -421,6 +421,48 @@ func (s *Server) RestoreAllInvalidKeys(c *gin.Context) {
 	}
 
 	response.SuccessI18n(c, "success.keys_restored", nil, map[string]any{"count": rowsAffected})
+}
+
+// RestoreAllLimitedKeys sets the status of all 'limited' keys in a group to 'active'.
+func (s *Server) RestoreAllLimitedKeys(c *gin.Context) {
+	var req GroupIDRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, app_errors.NewAPIError(app_errors.ErrInvalidJSON, err.Error()))
+		return
+	}
+
+	if _, ok := s.findGroupByID(c, req.GroupID); !ok {
+		return
+	}
+
+	rowsAffected, err := s.KeyService.RestoreAllLimitedKeys(req.GroupID)
+	if err != nil {
+		response.Error(c, app_errors.ParseDBError(err))
+		return
+	}
+
+	response.SuccessI18n(c, "success.keys_restored", nil, map[string]any{"count": rowsAffected})
+}
+
+// ClearAllLimitedKeys deletes all 'limited' keys from a group.
+func (s *Server) ClearAllLimitedKeys(c *gin.Context) {
+	var req GroupIDRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, app_errors.NewAPIError(app_errors.ErrInvalidJSON, err.Error()))
+		return
+	}
+
+	if _, ok := s.findGroupByID(c, req.GroupID); !ok {
+		return
+	}
+
+	rowsAffected, err := s.KeyService.ClearAllLimitedKeys(req.GroupID)
+	if err != nil {
+		response.Error(c, app_errors.ParseDBError(err))
+		return
+	}
+
+	response.SuccessI18n(c, "success.limited_keys_cleared", nil, map[string]any{"count": rowsAffected})
 }
 
 // ClearAllInvalidKeys deletes all 'inactive' keys from a group.
@@ -478,7 +520,7 @@ func (s *Server) ExportKeys(c *gin.Context) {
 	}
 
 	switch statusFilter {
-	case "all", models.KeyStatusActive, models.KeyStatusInvalid, models.KeyStatusRecorded:
+	case "all", models.KeyStatusActive, models.KeyStatusInvalid, models.KeyStatusRecorded, models.KeyStatusLimited:
 	default:
 		response.ErrorI18nFromAPIError(c, app_errors.ErrValidation, "validation.invalid_status_filter")
 		return

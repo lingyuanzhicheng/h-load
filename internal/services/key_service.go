@@ -338,12 +338,22 @@ func (s *KeyService) TestMultipleKeys(group *models.Group, keysText string) ([]k
 	return allResults, nil
 }
 
+// RestoreAllLimitedKeys sets the status of all 'limited' keys in a group to 'active'.
+func (s *KeyService) RestoreAllLimitedKeys(groupID uint) (int64, error) {
+	return s.KeyProvider.RestoreLimitedKeys(groupID)
+}
+
+// ClearAllLimitedKeys deletes all 'limited' keys from a group.
+func (s *KeyService) ClearAllLimitedKeys(groupID uint) (int64, error) {
+	return s.KeyProvider.RemoveLimitedKeys(groupID)
+}
+
 // StreamKeysToWriter fetches keys from the database in batches and writes them to the provided writer.
 func (s *KeyService) StreamKeysToWriter(groupID uint, statusFilter string, writer io.Writer) error {
 	query := s.DB.Model(&models.APIKey{}).Where("group_id = ?", groupID).Select("id, key_value")
 
 	switch statusFilter {
-	case models.KeyStatusActive, models.KeyStatusInvalid:
+	case models.KeyStatusActive, models.KeyStatusInvalid, models.KeyStatusLimited:
 		query = query.Where("status = ?", statusFilter)
 	case "all":
 	default:

@@ -460,7 +460,7 @@ func (p *KeyProvider) RestoreMultipleKeys(groupID uint, keyValues []string) (int
 			return nil
 		}
 
-		if err := tx.Where("group_id = ? AND key_hash IN ? AND status = ?", groupID, keyHashes, models.KeyStatusInvalid).Find(&keysToRestore).Error; err != nil {
+		if err := tx.Where("group_id = ? AND key_hash IN ? AND status IN ?", groupID, keyHashes, []string{models.KeyStatusInvalid, models.KeyStatusLimited}).Find(&keysToRestore).Error; err != nil {
 			return err
 		}
 
@@ -498,6 +498,49 @@ func (p *KeyProvider) RestoreMultipleKeys(groupID uint, keyValues []string) (int
 // RemoveInvalidKeys 移除组内所有无效的 Key。
 func (p *KeyProvider) RemoveInvalidKeys(groupID uint) (int64, error) {
 	return p.removeKeysByStatus(groupID, models.KeyStatusInvalid)
+}
+
+// RestoreLimitedKeys 恢复组内所有受限的 Key。
+func (p *KeyProvider) RestoreLimitedKeys(groupID uint) (int64, error) {
+	var limitedKeys []models.APIKey
+	var restoredCount int64
+
+	err := p.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("group_id = ? AND status = ?", groupID, models.KeyStatusLimited).Find(&limitedKeys).Error; err != nil {
+			return err
+		}
+
+		if len(limitedKeys) == 0 {
+			return nil
+		}
+
+		updates := map[string]any{
+			"status":        models.KeyStatusActive,
+			"failure_count": 0,
+		}
+		result := tx.Model(&models.APIKey{}).Where("group_id = ? AND status = ?", groupID, models.KeyStatusLimited).Updates(updates)
+		if result.Error != nil {
+			return result.Error
+		}
+		restoredCount = result.RowsAffected
+
+		for _, key := range limitedKeys {
+			key.Status = models.KeyStatusActive
+			key.FailureCount = 0
+			if err := p.addKeyToStore(&key); err != nil {
+				logrus.WithFields(logrus.Fields{"keyID": key.ID, "error": err}).Error("Failed to restore limited key in store after DB update, rolling back transaction")
+				return err
+			}
+		}
+		return nil
+	})
+
+	return restoredCount, err
+}
+
+// RemoveLimitedKeys 移除组内所有受限的 Key。
+func (p *KeyProvider) RemoveLimitedKeys(groupID uint) (int64, error) {
+	return p.removeKeysByStatus(groupID, models.KeyStatusLimited)
 }
 
 // RemoveAllKeys 移除组内所有的 Key。

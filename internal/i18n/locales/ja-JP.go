@@ -118,6 +118,7 @@ var MessagesJaJP = map[string]string{
 	"success.group_deleted":        "グループと関連キーが正常に削除されました",
 	"success.keys_restored":        "{{.count}}個のキーが復元されました",
 	"success.invalid_keys_cleared": "{{.count}}個の無効なキーがクリアされました",
+	"success.limited_keys_cleared": "{{.count}}個の制限されたキーがクリアされました",
 	"success.all_keys_cleared":     "{{.count}}個のキーがクリアされました",
 	"success.groups_reordered":     "グループの並び順を保存しました",
 

@@ -2,10 +2,12 @@ package keypool
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"h-load/internal/channel"
 	"h-load/internal/config"
 	"h-load/internal/encryption"
+	app_errors "h-load/internal/errors"
 	"h-load/internal/models"
 	"time"
 
@@ -64,6 +66,13 @@ func (s *KeyValidator) ValidateSingleKey(key *models.APIKey, group *models.Group
 	}
 
 	isValid, validationErr := ch.ValidateKey(ctx, key, group)
+
+	if errors.Is(validationErr, app_errors.ErrKeyRateLimited) {
+		if err := s.keypoolProvider.UpdateKeyStatus(key.GroupID, key.ID, models.KeyStatusLimited); err != nil {
+			logrus.WithError(err).WithField("key_id", key.ID).Error("Failed to set key status to limited")
+		}
+		return false, validationErr
+	}
 
 	var errorMsg string
 	if !isValid && validationErr != nil {

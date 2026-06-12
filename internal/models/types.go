@@ -13,6 +13,7 @@ const (
 	KeyStatusRecorded = "recorded"
 	KeyStatusActive   = "active"
 	KeyStatusInvalid  = "invalid"
+	KeyStatusLimited  = "limited"
 )
 
 // SystemSetting 对应 system_settings 表

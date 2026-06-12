@@ -118,6 +118,7 @@ var MessagesZhCN = map[string]string{
 	"success.group_deleted":        "分组及相关密钥删除成功",
 	"success.keys_restored":        "{{.count}}个密钥已恢复",
 	"success.invalid_keys_cleared": "{{.count}}个无效密钥已清除",
+	"success.limited_keys_cleared": "{{.count}}个受限密钥已清除",
 	"success.all_keys_cleared":     "{{.count}}个密钥已清除",
 	"success.groups_reordered":     "分组排序已保存",
 

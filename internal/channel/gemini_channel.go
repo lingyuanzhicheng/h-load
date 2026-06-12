@@ -157,6 +157,10 @@ func (ch *GeminiChannel) ValidateKey(ctx context.Context, apiKey *models.APIKey,
 	// Use the new parser to extract a clean error message.
 	parsedError := app_errors.ParseUpstreamError(errorBody)
 
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return false, fmt.Errorf("%w: [status 429] %s", app_errors.ErrKeyRateLimited, parsedError)
+	}
+
 	return false, fmt.Errorf("[status %d] %s", resp.StatusCode, parsedError)
 }
 

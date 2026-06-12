@@ -118,6 +118,7 @@ var MessagesEnUS = map[string]string{
 	"success.group_deleted":        "Group and related keys deleted successfully",
 	"success.keys_restored":        "{{.count}} keys restored",
 	"success.invalid_keys_cleared": "{{.count}} invalid keys cleared",
+	"success.limited_keys_cleared": "{{.count}} limited keys cleared",
 	"success.all_keys_cleared":     "{{.count}} keys cleared",
 	"success.groups_reordered":     "Group order saved",
 

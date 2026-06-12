@@ -578,6 +578,15 @@ function resetPage() {
                 <n-divider vertical />
                 <n-tooltip trigger="hover">
                   <template #trigger>
+                    <n-gradient-text type="warning" size="20">
+                      {{ stats?.key_stats?.limited_keys ?? 0 }}
+                    </n-gradient-text>
+                  </template>
+                  {{ t("keys.limitedKeyCount") }}
+                </n-tooltip>
+                <n-divider vertical />
+                <n-tooltip trigger="hover">
+                  <template #trigger>
                     <n-gradient-text type="error" size="20">
                       {{ stats?.key_stats?.invalid_keys ?? 0 }}
                     </n-gradient-text>
