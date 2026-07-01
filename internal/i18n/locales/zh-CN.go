@@ -171,14 +171,25 @@ var MessagesZhCN = map[string]string{
 	"config.key_validation_interval":         "密钥验证间隔（分钟）",
 	"config.key_validation_interval_desc":    "后台验证密钥的默认间隔（分钟）。",
 	"config.key_validation_concurrency":      "密钥验证并发数",
-	"config.key_validation_concurrency_desc": "后台定时验证无效 Key 时的并发数，如果使用SQLite或者运行环境性能不佳，请尽量保证20以下，避免过高的并发导致数据不一致问题。",
+	"config.key_validation_concurrency_desc": "后台定时验证受限 Key 时的并发数，如果使用SQLite或者运行环境性能不佳，请尽量保证20以下，避免过高的并发导致数据不一致问题。",
 	"config.key_validation_timeout":          "密钥验证超时（秒）",
 	"config.key_validation_timeout_desc":     "后台定时验证单个 Key 时的 API 请求超时时间（秒）。",
+
+	// Account config related
+	"config.account_request_timeout":             "账户请求超时（秒）",
+	"config.account_request_timeout_desc":        "账户请求 GitHub 接口时的超时时间（秒）。",
+	"config.account_blacklist_threshold":         "账户黑名单阈值",
+	"config.account_blacklist_threshold_desc":    "一个账户累计失败多少次后进入黑名单（置为无效），0为不拉黑。",
+	"config.account_validation_interval":         "账户验证间隔（分钟）",
+	"config.account_validation_interval_desc":    "后台验证受限账户的默认间隔（分钟）。",
+	"config.account_validation_concurrency":      "账户验证并发数",
+	"config.account_validation_concurrency_desc": "后台定时验证受限账户时的并发数，如果使用SQLite或者运行环境性能不佳，请尽量保证20以下。",
 
 	// Category labels
 	"config.category.basic":   "基础参数",
 	"config.category.request": "请求设置",
 	"config.category.key":     "密钥配置",
+	"config.category.account": "账户配置",
 
 	// Internal error messages (for fmt.Errorf usage)
 	"error.upstreams_required":       "upstreams字段是必需的",

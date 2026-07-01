@@ -459,7 +459,7 @@ const searchAccountOptions = computed(() =>
   searchAccounts.value
     .filter(account => account.type === selectedLeakScanSourceType.value)
     .map(account => ({
-      label: `${account.type === "github_api" ? "GitHub API" : "GitHub Web"} #${account.username || account.id}`,
+      label: `${account.type === "github_api" ? "Github API" : "Github Web"} @${account.username || account.id} #${account.id} (${account.status})`,
       value: account.id,
     }))
 );

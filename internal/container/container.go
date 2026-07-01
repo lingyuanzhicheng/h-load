@@ -100,6 +100,9 @@ func BuildContainer() (*dig.Container, error) {
 	if err := container.Provide(keypool.NewCronChecker); err != nil {
 		return nil, err
 	}
+	if err := container.Provide(services.NewSearchAccountCronChecker); err != nil {
+		return nil, err
+	}
 
 	// Handlers
 	if err := container.Provide(handler.NewServer); err != nil {

@@ -125,6 +125,7 @@ func registerProtectedAPIRoutes(api *gin.RouterGroup, serverHandler *handler.Ser
 		groups.POST("/:id/leak-scan/stop", serverHandler.StopLeakScan)
 		groups.POST("/:id/leak-scan/resume", serverHandler.ResumeLeakScan)
 		groups.POST("/:id/leak-scan/reset", serverHandler.ResetLeakScan)
+		groups.POST("/:id/leak-scan/initialize", serverHandler.InitializeLeakScan)
 		groups.GET("/:id/leak-scan/runs", serverHandler.ListLeakScanRuns)
 		groups.GET("/:id/leak-scan/events", serverHandler.ListLeakScanEvents)
 
@@ -143,6 +144,7 @@ func registerProtectedAPIRoutes(api *gin.RouterGroup, serverHandler *handler.Ser
 		searchAccounts.PUT("/:id", serverHandler.UpdateSearchAccount)
 		searchAccounts.POST("/:id/validate", serverHandler.ValidateSearchAccount)
 		searchAccounts.DELETE("/:id", serverHandler.DeleteSearchAccount)
+		searchAccounts.POST("/clear", serverHandler.ClearSearchAccountsByStatus)
 	}
 
 	// Key Management Routes

@@ -72,20 +72,28 @@ const statusOptions = [
   { label: "全部", value: "all" },
   { label: "有效", value: "active" },
   { label: "无效", value: "inactive" },
+  { label: "受限", value: "limited" },
 ];
 
 const moreOptions = [
   { label: "导出全部账户", key: "copyAll" },
   { label: "导出有效账户", key: "copyActive" },
   { label: "导出无效账户", key: "copyInactive" },
+  { label: "导出受限账户", key: "copyLimited" },
   { type: "divider" },
   { label: "验证全部账户", key: "validateAll" },
   { label: "验证有效账户", key: "validateActive" },
   { label: "验证无效账户", key: "validateInactive" },
+  { label: "验证受限账户", key: "validateLimited" },
   { type: "divider" },
   {
     label: "清空无效账户",
     key: "clearInactive",
+    props: { style: { color: "#d03050" } },
+  },
+  {
+    label: "清空受限账户",
+    key: "clearLimited",
     props: { style: { color: "#d03050" } },
   },
   {
@@ -295,6 +303,9 @@ async function handleMoreAction(key: string) {
     case "copyInactive":
       await exportAccounts(accounts.value.filter(account => account.type === selectedType.value && account.status === "inactive"));
       break;
+    case "copyLimited":
+      await exportAccounts(accounts.value.filter(account => account.type === selectedType.value && account.status === "limited"));
+      break;
     case "validateAll":
       await validateAccounts();
       break;
@@ -304,8 +315,14 @@ async function handleMoreAction(key: string) {
     case "validateInactive":
       await validateAccounts("inactive");
       break;
+    case "validateLimited":
+      await validateAccounts("limited");
+      break;
     case "clearInactive":
       clearAccounts("inactive");
+      break;
+    case "clearLimited":
+      clearAccounts("limited");
       break;
     case "clearAll":
       clearAccounts();
@@ -322,7 +339,7 @@ function clearAccounts(status?: SearchAccountStatus) {
     return;
   }
   const d = dialog.warning({
-    title: status === "inactive" ? "清空无效账户" : "清空全部账户",
+    title: status === "inactive" ? "清空无效账户" : status === "limited" ? "清空受限账户" : "清空全部账户",
     content: `确认删除 ${targets.length} 个${selectedTypeTitle.value}账户？`,
     positiveText: "确认",
     negativeText: "取消",
@@ -351,11 +368,16 @@ async function exportAccounts(items: GitHubSearchAccount[]) {
     return;
   }
   const content = items.map(account => account.credential).join("\n");
-  if (await copy(content)) {
-    window.$message.success(`已导出 ${items.length} 个账户`);
-  } else {
-    window.$message.error("导出失败");
-  }
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `accounts-${selectedType.value}-${Date.now()}.txt`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  window.$message.success(`已导出 ${items.length} 个账户`);
 }
 
 function formatAccountTitle(account: GitHubSearchAccount) {
@@ -476,7 +498,7 @@ function changePageSize(size: number) {
                   v-for="account in pagedAccounts"
                   :key="account.id"
                   class="account-card"
-                  :class="account.status === 'active' ? 'status-valid' : 'status-invalid'"
+                  :class="account.status === 'active' ? 'status-valid' : account.status === 'limited' ? 'status-limited' : 'status-invalid'"
                 >
                   <div class="account-main">
                     <div class="account-section">
@@ -485,6 +507,12 @@ function changePageSize(size: number) {
                           <n-icon :component="CheckmarkCircle" />
                         </template>
                         有效
+                      </n-tag>
+                      <n-tag v-else-if="account.status === 'limited'" type="warning" :bordered="false" round>
+                        <template #icon>
+                          <n-icon :component="AlertCircleOutline" />
+                        </template>
+                        受限
                       </n-tag>
                       <n-tag v-else :bordered="false" round>
                         <template #icon>
@@ -894,6 +922,12 @@ function changePageSize(size: number) {
 .account-card.status-valid {
   border-color: var(--success-border);
   background: var(--success-bg);
+  border-width: 1.5px;
+}
+
+.account-card.status-limited {
+  border-color: #f0a020;
+  background: rgba(240, 160, 32, 0.08);
   border-width: 1.5px;
 }
 

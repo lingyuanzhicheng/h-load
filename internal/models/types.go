@@ -214,6 +214,7 @@ const (
 	SearchAccountTypeGitHubWeb  = "github_web"
 	SearchAccountStatusActive   = "active"
 	SearchAccountStatusInactive = "inactive"
+	SearchAccountStatusLimited  = "limited"
 
 	LeakScanAccountStrategyRoundRobin = "round_robin"
 	LeakScanAccountStrategyRandom     = "random"
@@ -223,6 +224,7 @@ const (
 	LeakScanStatusCompleted   = "completed"
 	LeakScanStatusInterrupted = "interrupted"
 	LeakScanStatusFailed      = "failed"
+	LeakScanStatusWaiting     = "waiting"
 )
 
 type GitHubSearchAccount struct {
@@ -268,6 +270,7 @@ type GroupLeakScanRun struct {
 	DuplicateCount      int64      `gorm:"not null;default:0" json:"duplicate_count"`
 	ValidCount          int64      `gorm:"not null;default:0" json:"valid_count"`
 	InvalidCount        int64      `gorm:"not null;default:0" json:"invalid_count"`
+	LimitedCount        int64      `gorm:"not null;default:0" json:"limited_count"`
 	ImportedCount       int64      `gorm:"not null;default:0" json:"imported_count"`
 	FailedCount         int64      `gorm:"not null;default:0" json:"failed_count"`
 	ErrorMessage        string     `gorm:"type:text" json:"error_message"`

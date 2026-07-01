@@ -214,3 +214,6 @@ data/
 
 # Windows Zone.Identifier alternate data streams (cause Windows build to fail)
 *:Zone.Identifier
+
+# Edit IDE
+.trae/

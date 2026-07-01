@@ -42,6 +42,12 @@ type SystemSettings struct {
 	KeyValidationConcurrency     int    `json:"key_validation_concurrency" default:"10" name:"config.key_validation_concurrency" category:"config.category.key" desc:"config.key_validation_concurrency_desc" validate:"required,min=1"`
 	KeyValidationTimeoutSeconds  int    `json:"key_validation_timeout_seconds" default:"20" name:"config.key_validation_timeout" category:"config.category.key" desc:"config.key_validation_timeout_desc" validate:"required,min=1"`
 
+	// 账户配置
+	AccountRequestTimeoutSeconds     int `json:"account_request_timeout_seconds" default:"20" name:"config.account_request_timeout" category:"config.category.account" desc:"config.account_request_timeout_desc" validate:"required,min=1"`
+	AccountBlacklistThreshold        int `json:"account_blacklist_threshold" default:"3" name:"config.account_blacklist_threshold" category:"config.category.account" desc:"config.account_blacklist_threshold_desc" validate:"required,min=0"`
+	AccountValidationIntervalMinutes int `json:"account_validation_interval_minutes" default:"60" name:"config.account_validation_interval" category:"config.category.account" desc:"config.account_validation_interval_desc" validate:"required,min=1"`
+	AccountValidationConcurrency     int `json:"account_validation_concurrency" default:"5" name:"config.account_validation_concurrency" category:"config.category.account" desc:"config.account_validation_concurrency_desc" validate:"required,min=1"`
+
 	// For cache
 	ProxyKeysMap map[string]struct{} `json:"-"`
 }

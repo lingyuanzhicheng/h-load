@@ -36,6 +36,10 @@ export const leakScanApi = {
     return res.data;
   },
 
+  async initialize(groupId: number): Promise<void> {
+    await http.post(`/groups/${groupId}/leak-scan/initialize`);
+  },
+
   async events(groupId: number, params?: { run_id?: number; page?: number; page_size?: number }): Promise<{
     run?: GroupLeakScanRun;
     events: GroupLeakScanEvent[];

@@ -27,50 +27,53 @@ import (
 
 // App holds all services and manages the application lifecycle.
 type App struct {
-	engine            *gin.Engine
-	configManager     types.ConfigManager
-	settingsManager   *config.SystemSettingsManager
-	groupManager      *services.GroupManager
-	logCleanupService *services.LogCleanupService
-	requestLogService *services.RequestLogService
-	cronChecker       *keypool.CronChecker
-	keyPoolProvider   *keypool.KeyProvider
-	proxyServer       *proxy.ProxyServer
-	storage           store.Store
-	db                *gorm.DB
-	httpServer        *http.Server
+	engine             *gin.Engine
+	configManager      types.ConfigManager
+	settingsManager    *config.SystemSettingsManager
+	groupManager       *services.GroupManager
+	logCleanupService  *services.LogCleanupService
+	requestLogService  *services.RequestLogService
+	cronChecker        *keypool.CronChecker
+	accountCronChecker *services.SearchAccountCronChecker
+	keyPoolProvider    *keypool.KeyProvider
+	proxyServer        *proxy.ProxyServer
+	storage            store.Store
+	db                 *gorm.DB
+	httpServer         *http.Server
 }
 
 // AppParams defines the dependencies for the App.
 type AppParams struct {
 	dig.In
-	Engine            *gin.Engine
-	ConfigManager     types.ConfigManager
-	SettingsManager   *config.SystemSettingsManager
-	GroupManager      *services.GroupManager
-	LogCleanupService *services.LogCleanupService
-	RequestLogService *services.RequestLogService
-	CronChecker       *keypool.CronChecker
-	KeyPoolProvider   *keypool.KeyProvider
-	ProxyServer       *proxy.ProxyServer
-	Storage           store.Store
-	DB                *gorm.DB
+	Engine             *gin.Engine
+	ConfigManager      types.ConfigManager
+	SettingsManager    *config.SystemSettingsManager
+	GroupManager       *services.GroupManager
+	LogCleanupService  *services.LogCleanupService
+	RequestLogService  *services.RequestLogService
+	CronChecker        *keypool.CronChecker
+	AccountCronChecker *services.SearchAccountCronChecker
+	KeyPoolProvider    *keypool.KeyProvider
+	ProxyServer        *proxy.ProxyServer
+	Storage            store.Store
+	DB                 *gorm.DB
 }
 
 // NewApp is the constructor for App, with dependencies injected by dig.
 func NewApp(params AppParams) *App {
 	return &App{
-		engine:            params.Engine,
-		configManager:     params.ConfigManager,
-		settingsManager:   params.SettingsManager,
-		groupManager:      params.GroupManager,
-		logCleanupService: params.LogCleanupService,
-		requestLogService: params.RequestLogService,
-		cronChecker:       params.CronChecker,
-		keyPoolProvider:   params.KeyPoolProvider,
-		proxyServer:       params.ProxyServer,
-		storage:           params.Storage,
-		db:                params.DB,
+		engine:             params.Engine,
+		configManager:      params.ConfigManager,
+		settingsManager:    params.SettingsManager,
+		groupManager:       params.GroupManager,
+		logCleanupService:  params.LogCleanupService,
+		requestLogService:  params.RequestLogService,
+		cronChecker:        params.CronChecker,
+		accountCronChecker: params.AccountCronChecker,
+		keyPoolProvider:    params.KeyPoolProvider,
+		proxyServer:        params.ProxyServer,
+		storage:            params.Storage,
+		db:                 params.DB,
 	}
 }
 
@@ -130,6 +133,7 @@ func (a *App) Start() error {
 		a.requestLogService.Start()
 		a.logCleanupService.Start()
 		a.cronChecker.Start()
+		a.accountCronChecker.Start()
 	} else {
 		logrus.Info("Starting as Slave Node.")
 		a.settingsManager.Initialize(a.storage, a.groupManager, a.configManager.IsMaster())
@@ -194,6 +198,7 @@ func (a *App) Stop(ctx context.Context) {
 	if serverConfig.IsMaster {
 		stoppableServices = append(stoppableServices,
 			a.cronChecker.Stop,
+			a.accountCronChecker.Stop,
 			a.logCleanupService.Stop,
 			a.requestLogService.Stop,
 		)

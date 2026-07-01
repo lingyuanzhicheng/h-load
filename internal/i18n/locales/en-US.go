@@ -175,10 +175,21 @@ var MessagesEnUS = map[string]string{
 	"config.key_validation_timeout":          "Key Validation Timeout (seconds)",
 	"config.key_validation_timeout_desc":     "API request timeout (seconds) when validating a single key in the background.",
 
+	// Account config related
+	"config.account_request_timeout":             "Account Request Timeout (seconds)",
+	"config.account_request_timeout_desc":        "Timeout (seconds) for account requests to GitHub API.",
+	"config.account_blacklist_threshold":         "Account Blacklist Threshold",
+	"config.account_blacklist_threshold_desc":    "After how many cumulative failures does an account enter the blacklist (set invalid); 0 means do not blacklist.",
+	"config.account_validation_interval":         "Account Validation Interval (minutes)",
+	"config.account_validation_interval_desc":    "Default interval (minutes) for background validation of limited accounts.",
+	"config.account_validation_concurrency":      "Account Validation Concurrency",
+	"config.account_validation_concurrency_desc": "Concurrency level for background validation of limited accounts. Keep below 20 for SQLite or low-performance environments.",
+
 	// Category labels
 	"config.category.basic":   "Basic",
 	"config.category.request": "Request Settings",
 	"config.category.key":     "Key Configuration",
+	"config.category.account": "Account Configuration",
 
 	// Internal error messages (for fmt.Errorf usage)
 	"error.upstreams_required":       "upstreams field is required",

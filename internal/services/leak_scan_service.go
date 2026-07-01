@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"h-load/internal/config"
-	"h-load/internal/httpclient"
 	app_errors "h-load/internal/errors"
+	"h-load/internal/httpclient"
 	"io"
 	"math"
 	"math/rand"
@@ -259,7 +259,7 @@ func (s *GroupLeakScanService) Stop(ctx context.Context, groupID uint) error {
 	if exists {
 		now := time.Now()
 		return s.db.WithContext(ctx).Model(&models.GroupLeakScanRun{}).
-			Where("group_id = ? AND status = ?", groupID, models.LeakScanStatusRunning).
+			Where("group_id = ? AND (status = ? OR status = ?)", groupID, models.LeakScanStatusRunning, models.LeakScanStatusWaiting).
 			Updates(map[string]any{"status": models.LeakScanStatusInterrupted, "finished_at": &now}).Error
 	}
 	return nil
@@ -268,6 +268,14 @@ func (s *GroupLeakScanService) Stop(ctx context.Context, groupID uint) error {
 func (s *GroupLeakScanService) Reset(ctx context.Context, groupID uint) (*models.GroupLeakScanRun, error) {
 	_ = s.Stop(ctx, groupID)
 	return s.Start(ctx, groupID)
+}
+
+// Initialize 初始化泄露扫描任务：停止运行中的任务，清空所有记录与已完成的任务，重置为初始状态，但不重新启动。
+func (s *GroupLeakScanService) Initialize(ctx context.Context, groupID uint) error {
+	_ = s.Stop(ctx, groupID)
+	s.db.WithContext(ctx).Where("group_id = ?", groupID).Delete(&models.GroupLeakScanEvent{})
+	s.db.WithContext(ctx).Where("group_id = ?", groupID).Delete(&models.GroupLeakScanRun{})
+	return nil
 }
 
 func (s *GroupLeakScanService) ListRuns(ctx context.Context, groupID uint, page, pageSize int) ([]models.GroupLeakScanRun, int64, error) {
@@ -419,7 +427,7 @@ func (s *GroupLeakScanService) executeRun(ctx context.Context, runID, groupID ui
 }
 
 func (s *GroupLeakScanService) executeSearchSource(ctx context.Context, runID, groupID uint, group *models.Group, payload LeakScanConfigPayload, query, sourceType string) error {
-	account, err := s.pickAccount(ctx, payload.AccountIDs, sourceType, payload.AccountStrategy)
+	account, err := s.pickAccountWithWait(ctx, runID, groupID, payload.AccountIDs, sourceType, payload.AccountStrategy)
 	if err != nil {
 		return err
 	}
@@ -443,6 +451,19 @@ func (s *GroupLeakScanService) executeSearchSource(ctx context.Context, runID, g
 				return err
 			}
 			results, total, err := s.searchGitHub(ctx, account, currentQuery, sourceType, page)
+			isRateLimited := err != nil && strings.Contains(err.Error(), "status 429")
+			if isRateLimited {
+				s.searchAccountService.MarkUsedWithRateLimit(ctx, account.ID, false, true)
+				s.searchAccountService.MarkRateLimited(ctx, account.ID)
+				_ = s.logEvent(ctx, runID, groupID, "account_rate_limited", "warning", fmt.Sprintf("账户被限流，跳过当前页: %s", err.Error()), map[string]any{"query": currentQuery, "source_type": sourceType, "page": page})
+				// 尝试获取其他可用账户，若全部受限则进入等待
+				newAccount, waitErr := s.pickAccountWithWait(ctx, runID, groupID, payload.AccountIDs, sourceType, payload.AccountStrategy)
+				if waitErr != nil {
+					return waitErr
+				}
+				account = newAccount
+				continue
+			}
 			s.searchAccountService.MarkUsed(ctx, account.ID, err == nil)
 			if err != nil {
 				_ = s.incrementRun(runID, map[string]any{"failed_count": gorm.Expr("failed_count + ?", 1)})
@@ -547,20 +568,20 @@ func (s *GroupLeakScanService) processCandidate(ctx context.Context, runID uint,
 			return err
 		}
 		_ = s.incrementRun(runID, map[string]any{"valid_count": gorm.Expr("valid_count + ?", 1), "imported_count": gorm.Expr("imported_count + ?", 1)})
-		return s.logEvent(ctx, runID, group.ID, "key_marked_active", "info", "模型检测通过，key 已标记为有效", map[string]any{"key_id": apiKey.ID, "url": candidate.URL, "line": candidate.Line})
+		return s.logEvent(ctx, runID, group.ID, "key_marked_active", "info", "验证有效，key 已标记为有效", map[string]any{"key_id": apiKey.ID, "url": candidate.URL, "line": candidate.Line})
 	}
 	if errors.Is(validationErr, app_errors.ErrKeyRateLimited) {
 		if err := s.keyService.KeyProvider.UpdateKeyStatus(group.ID, apiKey.ID, models.KeyStatusLimited); err != nil {
 			return err
 		}
-		_ = s.incrementRun(runID, map[string]any{"valid_count": gorm.Expr("valid_count + ?", 1), "imported_count": gorm.Expr("imported_count + ?", 1)})
-		return s.logEvent(ctx, runID, group.ID, "key_marked_limited", "info", "key 已被限流，标记为受限状态", map[string]any{"key_id": apiKey.ID, "url": candidate.URL, "line": candidate.Line})
+		_ = s.incrementRun(runID, map[string]any{"limited_count": gorm.Expr("limited_count + ?", 1), "imported_count": gorm.Expr("imported_count + ?", 1)})
+		return s.logEvent(ctx, runID, group.ID, "key_marked_limited", "info", "验证429，key 已标记为受限", map[string]any{"key_id": apiKey.ID, "url": candidate.URL, "line": candidate.Line})
 	}
 	if err := s.keyService.KeyProvider.UpdateKeyStatus(group.ID, apiKey.ID, models.KeyStatusInvalid); err != nil {
 		return err
 	}
 	_ = s.incrementRun(runID, map[string]any{"invalid_count": gorm.Expr("invalid_count + ?", 1)})
-	msg := "模型检测不通过，key 已标记为无效"
+	msg := "验证无效，key 已标记为无效"
 	if validationErr != nil {
 		msg = validationErr.Error()
 	}
@@ -579,6 +600,79 @@ func (s *GroupLeakScanService) pickAccount(ctx context.Context, ids []uint, sour
 		return &accounts[rand.Intn(len(accounts))], nil
 	}
 	return &accounts[0], nil
+}
+
+// accountAvailability 表示任务关联账户的可用性状态。
+type accountAvailability int
+
+const (
+	accountAvailable     accountAvailability = iota // 有可用账户
+	accountAllLimited                               // 全部受限，需等待
+	accountAllInvalid                               // 全部无效，需停止
+)
+
+// checkAccountAvailability 检查任务关联账户的可用性状态。
+func (s *GroupLeakScanService) checkAccountAvailability(ctx context.Context, ids []uint, sourceType string) accountAvailability {
+	var activeCount, limitedCount, invalidCount int64
+	s.db.WithContext(ctx).Model(&models.GitHubSearchAccount{}).
+		Where("id IN ? AND type = ? AND status = ?", ids, sourceType, models.SearchAccountStatusActive).Count(&activeCount)
+	if activeCount > 0 {
+		return accountAvailable
+	}
+	s.db.WithContext(ctx).Model(&models.GitHubSearchAccount{}).
+		Where("id IN ? AND type = ? AND status = ?", ids, sourceType, models.SearchAccountStatusLimited).Count(&limitedCount)
+	if limitedCount > 0 {
+		return accountAllLimited
+	}
+	s.db.WithContext(ctx).Model(&models.GitHubSearchAccount{}).
+		Where("id IN ? AND type = ?", ids, sourceType).Count(&invalidCount)
+	_ = invalidCount
+	return accountAllInvalid
+}
+
+// pickAccountWithWait 选择可用账户，若无可用账户则根据账户状态等待或停止。
+func (s *GroupLeakScanService) pickAccountWithWait(ctx context.Context, runID, groupID uint, ids []uint, sourceType, strategy string) (*models.GitHubSearchAccount, error) {
+	account, err := s.pickAccount(ctx, ids, sourceType, strategy)
+	if err == nil {
+		return account, nil
+	}
+
+	// 没有可用账户，检查账户状态
+	availability := s.checkAccountAvailability(ctx, ids, sourceType)
+
+	switch availability {
+	case accountAllLimited:
+		// 全部受限，进入等待状态
+		_ = s.db.Model(&models.GroupLeakScanRun{}).Where("id = ?", runID).Update("status", models.LeakScanStatusWaiting).Error
+		_ = s.logEvent(ctx, runID, groupID, "account_waiting", "warning", "所有账户处于受限状态，任务等待中", map[string]any{"source_type": sourceType})
+
+		// 轮询等待账户恢复
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-ticker.C:
+				availability = s.checkAccountAvailability(ctx, ids, sourceType)
+				if availability == accountAvailable {
+					// 有可用账户了，恢复运行状态
+					_ = s.db.Model(&models.GroupLeakScanRun{}).Where("id = ?", runID).Update("status", models.LeakScanStatusRunning).Error
+					_ = s.logEvent(ctx, runID, groupID, "account_recovered", "info", "账户已恢复可用，任务继续", map[string]any{"source_type": sourceType})
+					return s.pickAccount(ctx, ids, sourceType, strategy)
+				}
+				if availability == accountAllInvalid {
+					// 所有账户都变为无效，停止任务
+					return nil, fmt.Errorf("所有账户已处于无效状态，任务停止")
+				}
+				// 仍为受限，继续等待
+			}
+		}
+	case accountAllInvalid:
+		return nil, fmt.Errorf("所有账户已处于无效状态，任务停止")
+	default:
+		return nil, err
+	}
 }
 
 func (s *GroupLeakScanService) searchGitHub(ctx context.Context, account *models.GitHubSearchAccount, query, sourceType string, page int) ([]leakSearchResult, int64, error) {

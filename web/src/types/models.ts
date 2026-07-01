@@ -121,7 +121,7 @@ export interface RequestStats {
 export type TaskType = "KEY_VALIDATION" | "KEY_IMPORT" | "KEY_DELETE";
 
 export type SearchAccountType = "github_api" | "github_web";
-export type SearchAccountStatus = "active" | "inactive";
+export type SearchAccountStatus = "active" | "inactive" | "limited";
 
 export interface GitHubSearchAccount {
   id: number;
@@ -148,7 +148,7 @@ export interface LeakScanConfig {
   match_rules: string[];
 }
 
-export type LeakScanRunStatus = "idle" | "running" | "completed" | "interrupted" | "failed";
+export type LeakScanRunStatus = "idle" | "running" | "completed" | "interrupted" | "failed" | "waiting";
 
 export interface GroupLeakScanRun {
   id: number;
@@ -162,6 +162,7 @@ export interface GroupLeakScanRun {
   duplicate_count: number;
   valid_count: number;
   invalid_count: number;
+  limited_count: number;
   imported_count: number;
   failed_count: number;
   error_message: string;

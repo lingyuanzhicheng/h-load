@@ -82,6 +82,25 @@ func (s *Server) ValidateSearchAccounts(c *gin.Context) {
 	response.Success(c, gin.H{"valid": valid, "invalid": invalid})
 }
 
+func (s *Server) ClearSearchAccountsByStatus(c *gin.Context) {
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		response.Error(c, app_errors.NewAPIError(app_errors.ErrInvalidJSON, err.Error()))
+		return
+	}
+	if payload.Status != models.SearchAccountStatusActive && payload.Status != models.SearchAccountStatusInactive && payload.Status != models.SearchAccountStatusLimited {
+		response.Error(c, app_errors.NewAPIError(app_errors.ErrBadRequest, "invalid status"))
+		return
+	}
+	deleted, err := s.SearchAccountService.ClearByStatus(c.Request.Context(), payload.Status)
+	if s.handleGroupError(c, err) {
+		return
+	}
+	response.Success(c, gin.H{"deleted": deleted})
+}
+
 func (s *Server) GetLeakScanConfig(c *gin.Context) {
 	groupID, ok := parseUintParam(c, "id")
 	if !ok {
@@ -145,6 +164,18 @@ func (s *Server) ResumeLeakScan(c *gin.Context) {
 
 func (s *Server) ResetLeakScan(c *gin.Context) {
 	s.runLeakScanAction(c, s.GroupLeakScanService.Reset)
+}
+
+func (s *Server) InitializeLeakScan(c *gin.Context) {
+	groupID, ok := parseUintParam(c, "id")
+	if !ok {
+		return
+	}
+	if err := s.GroupLeakScanService.Initialize(c.Request.Context(), groupID); err != nil {
+		s.handleGroupError(c, err)
+		return
+	}
+	response.Success(c, nil)
 }
 
 func (s *Server) ListLeakScanRuns(c *gin.Context) {

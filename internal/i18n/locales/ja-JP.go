@@ -175,10 +175,21 @@ var MessagesJaJP = map[string]string{
 	"config.key_validation_timeout":          "キー検証タイムアウト（秒）",
 	"config.key_validation_timeout_desc":     "バックグラウンドで単一キーを検証する際のAPIリクエストタイムアウト（秒）。",
 
+	// Account config related
+	"config.account_request_timeout":             "アカウントリクエストタイムアウト（秒）",
+	"config.account_request_timeout_desc":        "アカウントがGitHub APIにリクエストする際のタイムアウト（秒）。",
+	"config.account_blacklist_threshold":         "アカウントブラックリストしきい値",
+	"config.account_blacklist_threshold_desc":    "アカウントが累計で何回失敗するとブラックリストに入るか（無効化）、0はブラックリストに入れない。",
+	"config.account_validation_interval":         "アカウント検証間隔（分）",
+	"config.account_validation_interval_desc":    "制限アカウントのバックグラウンド検証のデフォルト間隔（分）。",
+	"config.account_validation_concurrency":      "アカウント検証並行数",
+	"config.account_validation_concurrency_desc": "制限アカウントのバックグラウンド検証時の並行数。SQLiteや低性能環境では20以下を維持してください。",
+
 	// Category labels
 	"config.category.basic":   "基本設定",
 	"config.category.request": "リクエスト設定",
 	"config.category.key":     "キー設定",
+	"config.category.account": "アカウント設定",
 
 	// Internal error messages (for fmt.Errorf usage)
 	"error.upstreams_required":       "upstreamsフィールドは必須です",

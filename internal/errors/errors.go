@@ -39,6 +39,7 @@ var (
 	ErrMaxRetriesExceeded = &APIError{HTTPStatus: http.StatusBadGateway, Code: "MAX_RETRIES_EXCEEDED", Message: "Request failed after maximum retries"}
 	ErrNoKeysAvailable    = &APIError{HTTPStatus: http.StatusServiceUnavailable, Code: "NO_KEYS_AVAILABLE", Message: "No API keys available to process the request"}
 	ErrKeyRateLimited     = errors.New("key is rate limited")
+	ErrAccountRateLimited = errors.New("account is rate limited")
 )
 
 // NewAPIError creates a new APIError with a custom message.

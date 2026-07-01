@@ -19,7 +19,7 @@ import {
   EyeOffOutline,
   EyeOutline,
   PlayOutline,
-  RefreshOutline,
+  RefreshCircle,
   StopCircleOutline,
   Pencil,
   Trash,
@@ -224,7 +224,7 @@ const leakScanStatus = computed(() => leakScanRun.value?.status || "idle");
 
 async function handleLeakScanMainAction() {
   if (!props.group?.id) return;
-  if (leakScanStatus.value === "running") {
+  if (leakScanStatus.value === "running" || leakScanStatus.value === "waiting") {
     await leakScanApi.stop(props.group.id);
   } else if (leakScanStatus.value === "interrupted") {
     await leakScanApi.resume(props.group.id);
@@ -236,7 +236,7 @@ async function handleLeakScanMainAction() {
 
 async function handleLeakScanReset() {
   if (!props.group?.id) return;
-  await leakScanApi.reset(props.group.id);
+  await leakScanApi.initialize(props.group.id);
   await loadLeakScanStatus();
 }
 
@@ -244,17 +244,19 @@ function leakScanStatusLabel() {
   switch (leakScanStatus.value) {
     case "running":
       return "扫描运行中";
+    case "waiting":
+      return "等待账户恢复";
     case "interrupted":
-      return "扫描已中断";
+      return "扫描已暂停";
     case "failed":
-      return "扫描失败";
+      return "扫描已停止";
     default:
       return "扫描未工作";
   }
 }
 
 function leakScanMainLabel() {
-  if (leakScanStatus.value === "running") return "终止扫描";
+  if (leakScanStatus.value === "running" || leakScanStatus.value === "waiting") return "终止扫描";
   if (leakScanStatus.value === "interrupted") return "恢复扫描";
   return "启动扫描";
 }
@@ -450,12 +452,12 @@ function resetPage() {
               quaternary
               circle
               size="small"
-              :type="leakScanStatus === 'running' ? 'error' : 'default'"
+              :type="leakScanStatus === 'running' || leakScanStatus === 'waiting' ? 'error' : 'default'"
               @click="handleLeakScanMainAction"
               :title="leakScanMainLabel()"
             >
               <template #icon>
-                <n-icon :component="leakScanStatus === 'running' ? StopCircleOutline : PlayOutline" />
+                <n-icon :component="leakScanStatus === 'running' || leakScanStatus === 'waiting' ? StopCircleOutline : PlayOutline" />
               </template>
             </n-button>
             <n-button
@@ -464,10 +466,10 @@ function resetPage() {
               circle
               size="small"
               @click="handleLeakScanReset"
-              title="重置扫描"
+              title="初始化"
             >
               <template #icon>
-                <n-icon class="reset-scan-icon" :component="RefreshOutline" />
+                <n-icon class="reset-scan-icon" :component="RefreshCircle" />
               </template>
             </n-button>
             <n-button
@@ -969,7 +971,16 @@ function resetPage() {
   animation: leakSpin 1s linear infinite;
 }
 
-.leak-status.interrupted,
+.leak-status.waiting {
+  border-color: #2080f0;
+  border-top-color: transparent;
+  animation: leakSpin 1.5s linear infinite;
+}
+
+.leak-status.interrupted {
+  border-color: #f0a020;
+}
+
 .leak-status.failed {
   border-color: #d03050;
 }

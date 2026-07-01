@@ -76,9 +76,9 @@ async function loadMore() {
           <div><span>页数</span><strong>{{ run.processed_pages }} / {{ run.expected_pages }}</strong></div>
           <div><span>识别候选</span><strong>{{ run.collected_count }}</strong></div>
           <div><span>重复</span><strong>{{ run.duplicate_count }}</strong></div>
-          <div><span>通过</span><strong>{{ run.valid_count }}</strong></div>
-          <div><span>失败</span><strong>{{ run.invalid_count }}</strong></div>
-          <div><span>写入有效</span><strong>{{ run.imported_count }}</strong></div>
+          <div><span>有效</span><strong>{{ run.valid_count }}</strong></div>
+          <div><span>无效</span><strong>{{ run.invalid_count }}</strong></div>
+          <div><span>受限</span><strong>{{ run.limited_count }}</strong></div>
         </div>
         <n-empty v-if="!events.length" description="暂无日志" />
         <div v-else class="event-list">
