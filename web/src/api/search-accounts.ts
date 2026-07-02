@@ -21,7 +21,7 @@ export const searchAccountsApi = {
     await http.delete(`/search-accounts/${id}`);
   },
 
-  async validate(id: number): Promise<GitHubSearchAccount> {
+  async validate(id: number): Promise<{ account: GitHubSearchAccount; is_valid: boolean }> {
     const res = await http.post(`/search-accounts/${id}/validate`);
     return res.data;
   },

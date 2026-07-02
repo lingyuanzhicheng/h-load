@@ -115,7 +115,7 @@ func (s *SearchAccountCronChecker) validateLimitedAccounts() {
 						return
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-					updated, err := s.accountService.Validate(ctx, account.ID)
+					updated, _, err := s.accountService.Validate(ctx, account.ID)
 					cancel()
 					if err != nil {
 						logrus.WithError(err).WithField("account_id", account.ID).Error("SearchAccountCronChecker: Failed to validate account")

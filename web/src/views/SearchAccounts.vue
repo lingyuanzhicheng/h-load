@@ -280,9 +280,9 @@ function getCredentialDisplayValue(account: AccountRow) {
 async function testAccount(account: GitHubSearchAccount) {
   loading.value = true;
   try {
-    const updated = await searchAccountsApi.validate(account.id);
+    const result = await searchAccountsApi.validate(account.id);
     await loadAccounts();
-    if (updated.status === "active") {
+    if (result.is_valid) {
       window.$message.success("账户测试通过");
     } else {
       window.$message.error("账户测试失败");

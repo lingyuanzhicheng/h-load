@@ -67,11 +67,11 @@ func (s *Server) ValidateSearchAccount(c *gin.Context) {
 	if !ok {
 		return
 	}
-	account, err := s.SearchAccountService.Validate(c.Request.Context(), id)
+	account, isValid, err := s.SearchAccountService.Validate(c.Request.Context(), id)
 	if s.handleGroupError(c, err) {
 		return
 	}
-	response.Success(c, account)
+	response.Success(c, gin.H{"account": account, "is_valid": isValid})
 }
 
 func (s *Server) ValidateSearchAccounts(c *gin.Context) {

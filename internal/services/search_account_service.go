@@ -194,10 +194,10 @@ func (s *SearchAccountService) MarkRateLimited(ctx context.Context, id uint) {
 	_ = s.db.WithContext(ctx).Model(&models.GitHubSearchAccount{}).Where("id = ?", id).Update("status", models.SearchAccountStatusLimited).Error
 }
 
-func (s *SearchAccountService) Validate(ctx context.Context, id uint) (*models.GitHubSearchAccount, error) {
+func (s *SearchAccountService) Validate(ctx context.Context, id uint) (*models.GitHubSearchAccount, bool, error) {
 	var account models.GitHubSearchAccount
 	if err := s.db.WithContext(ctx).First(&account, id).Error; err != nil {
-		return nil, app_errors.ParseDBError(err)
+		return nil, false, app_errors.ParseDBError(err)
 	}
 
 	settings := s.settingsManager.GetSettings()
@@ -217,6 +217,7 @@ func (s *SearchAccountService) Validate(ctx context.Context, id uint) (*models.G
 	}
 
 	isRateLimited := validateErr != nil && errors.Is(validateErr, app_errors.ErrAccountRateLimited)
+	isValid := validateErr == nil
 
 	switch {
 	case validateErr == nil:
@@ -237,14 +238,16 @@ func (s *SearchAccountService) Validate(ctx context.Context, id uint) (*models.G
 	}
 
 	if err := s.db.WithContext(ctx).Model(&account).Updates(updates).Error; err != nil {
-		return nil, app_errors.ParseDBError(err)
+		return nil, false, app_errors.ParseDBError(err)
 	}
-	account.Status = updates["status"].(string)
+	if status, ok := updates["status"].(string); ok {
+		account.Status = status
+	}
 	account.Username = username
 	if fc, ok := updates["failure_count"]; ok {
 		account.FailureCount = fc.(int64)
 	}
-	return &account, nil
+	return &account, isValid, nil
 }
 
 func (s *SearchAccountService) ValidateMany(ctx context.Context, accountType, status string) (int, int, error) {
@@ -255,12 +258,12 @@ func (s *SearchAccountService) ValidateMany(ctx context.Context, accountType, st
 	validCount := 0
 	invalidCount := 0
 	for _, account := range accounts {
-		updated, err := s.Validate(ctx, account.ID)
+		updated, isValid, err := s.Validate(ctx, account.ID)
 		if err != nil {
 			invalidCount++
 			continue
 		}
-		if updated.Status == models.SearchAccountStatusActive {
+		if isValid && updated.Status == models.SearchAccountStatusActive {
 			validCount++
 		} else {
 			invalidCount++
