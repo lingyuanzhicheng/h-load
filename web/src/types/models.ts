@@ -140,7 +140,7 @@ export interface GitHubSearchAccount {
 export interface LeakScanConfig {
   enabled: boolean;
   source_types: SearchAccountType[];
-  account_strategy: "round_robin" | "random";
+  account_strategy: "round_robin" | "balanced";
   account_ids: number[];
   max_pages: number;
   deep_index: boolean;

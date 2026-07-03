@@ -83,7 +83,7 @@ interface GroupFormData {
   group_type?: string;
   leak_scan_enabled: boolean;
   leak_scan_source_types: SearchAccountType[];
-  leak_scan_account_strategy: "round_robin" | "random";
+  leak_scan_account_strategy: "round_robin" | "balanced";
   leak_scan_account_ids: number[];
   leak_scan_max_pages: number;
   leak_scan_deep_index: boolean;
@@ -417,7 +417,7 @@ async function fetchGroupConfigOptions() {
 }
 
 async function fetchSearchAccounts() {
-  searchAccounts.value = await searchAccountsApi.list({ status: "active" });
+  searchAccounts.value = await searchAccountsApi.list();
 }
 
 async function loadLeakScanConfig() {
@@ -442,7 +442,7 @@ const sourceTypeOptions = [
 
 const accountStrategyOptions = [
   { label: "轮询", value: "round_robin" },
-  { label: "随机", value: "random" },
+  { label: "均衡", value: "balanced" },
 ];
 
 const selectedLeakScanSourceType = computed<SearchAccountType>({
@@ -1001,7 +1001,7 @@ async function handleSubmit() {
                       <template #trigger>
                         <n-icon :component="HelpCircleOutline" class="help-icon" />
                       </template>
-                      轮询会按顺序选择搜索账户，随机会从可用账户中随机选择。
+                      轮询会按 ID 顺序依次选择搜索账户，均衡会优先使用请求次数最少的账户。
                     </n-tooltip>
                   </div>
                 </template>
@@ -1025,7 +1025,7 @@ async function handleSubmit() {
                     <template #trigger>
                       <n-icon :component="HelpCircleOutline" class="help-icon" />
                     </template>
-                    选择参与扫描的账户，只会显示当前信源类型下的有效账户。
+                    选择参与扫描的账户，会显示当前信源类型下的所有账户（含有效、受限、无效状态）。
                   </n-tooltip>
                 </div>
               </template>

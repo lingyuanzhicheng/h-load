@@ -246,6 +246,8 @@ function leakScanStatusLabel() {
       return "扫描运行中";
     case "waiting":
       return "等待账户恢复";
+    case "stopping":
+      return "暂停中";
     case "interrupted":
       return "扫描已暂停";
     case "failed":
@@ -256,7 +258,7 @@ function leakScanStatusLabel() {
 }
 
 function leakScanMainLabel() {
-  if (leakScanStatus.value === "running" || leakScanStatus.value === "waiting") return "终止扫描";
+  if (leakScanStatus.value === "running" || leakScanStatus.value === "waiting") return "暂停扫描";
   if (leakScanStatus.value === "interrupted") return "恢复扫描";
   return "启动扫描";
 }
@@ -453,6 +455,7 @@ function resetPage() {
               circle
               size="small"
               :type="leakScanStatus === 'running' || leakScanStatus === 'waiting' ? 'error' : 'default'"
+              :disabled="leakScanStatus === 'stopping'"
               @click="handleLeakScanMainAction"
               :title="leakScanMainLabel()"
             >
@@ -975,6 +978,12 @@ function resetPage() {
   border-color: #2080f0;
   border-top-color: transparent;
   animation: leakSpin 1.5s linear infinite;
+}
+
+.leak-status.stopping {
+  border-color: #f0a020;
+  border-top-color: transparent;
+  animation: leakSpin 1s linear infinite;
 }
 
 .leak-status.interrupted {

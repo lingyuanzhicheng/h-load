@@ -217,7 +217,7 @@ const (
 	SearchAccountStatusLimited  = "limited"
 
 	LeakScanAccountStrategyRoundRobin = "round_robin"
-	LeakScanAccountStrategyRandom     = "random"
+	LeakScanAccountStrategyBalanced   = "balanced"
 
 	LeakScanStatusIdle        = "idle"
 	LeakScanStatusRunning     = "running"
@@ -225,6 +225,7 @@ const (
 	LeakScanStatusInterrupted = "interrupted"
 	LeakScanStatusFailed      = "failed"
 	LeakScanStatusWaiting     = "waiting"
+	LeakScanStatusStopping    = "stopping" // 暂停中：收尾过程，完成当前页密钥验证后暂停
 )
 
 type GitHubSearchAccount struct {
@@ -274,6 +275,10 @@ type GroupLeakScanRun struct {
 	ImportedCount       int64      `gorm:"not null;default:0" json:"imported_count"`
 	FailedCount         int64      `gorm:"not null;default:0" json:"failed_count"`
 	ErrorMessage        string     `gorm:"type:text" json:"error_message"`
+	ResumeQueryIndex    int        `gorm:"not null;default:0" json:"resume_query_index"`       // 断点续扫：当前搜索规则索引
+	ResumeSourceTypeIdx int        `gorm:"not null;default:0" json:"resume_source_type_idx"`   // 断点续扫：当前 sourceType 索引
+	ResumePage          int        `gorm:"not null;default:0" json:"resume_page"`              // 断点续扫：下一页页码（0表示从新搜索开始）
+	ResumeLastAccountID uint       `gorm:"not null;default:0" json:"resume_last_account_id"`   // 断点续扫：上次使用的账户ID（恢复时换下一个）
 	StartedAt           *time.Time `json:"started_at"`
 	FinishedAt          *time.Time `json:"finished_at"`
 	CreatedAt           time.Time  `json:"created_at"`
