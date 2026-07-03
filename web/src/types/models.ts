@@ -148,7 +148,7 @@ export interface LeakScanConfig {
   match_rules: string[];
 }
 
-export type LeakScanRunStatus = "idle" | "running" | "completed" | "interrupted" | "failed" | "waiting";
+export type LeakScanRunStatus = "idle" | "running" | "completed" | "interrupted" | "failed" | "waiting" | "stopping";
 
 export interface GroupLeakScanRun {
   id: number;
