@@ -575,7 +575,9 @@ func (s *GroupLeakScanService) executeSearchSource(ctx context.Context, runID, g
 		processedQuery = preprocessQueryForAPI(query)
 	}
 	seenQueries := map[string]bool{processedQuery: true}
+	// queries 存储预处理后的查询（用于搜索），originalQueries 存储原始查询（用于深度索引）
 	queries := []string{processedQuery}
+	originalQueries := []string{query}
 
 	// 断点续扫：确定起始页
 	startPage := 1
@@ -585,6 +587,7 @@ func (s *GroupLeakScanService) executeSearchSource(ctx context.Context, runID, g
 
 	for queryIndex := 0; queryIndex < len(queries); queryIndex++ {
 		currentQuery := queries[queryIndex]
+		originalQuery := originalQueries[queryIndex]
 		firstPage := true
 		totalPages := 1
 		_ = s.db.Model(&models.GroupLeakScanRun{}).Where("id = ?", runID).Update("current_query", currentQuery).Error
@@ -632,10 +635,11 @@ func (s *GroupLeakScanService) executeSearchSource(ctx context.Context, runID, g
 				totalPages = maxPages
 			}
 			if page == 1 && payload.DeepIndex && total > int64(maxPages*perPage) {
-				refined := generateRefinedQueries(currentQuery, githubMaxRefinedQueries)
+				// 用原始查询（非预处理）生成细分查询，因为 generateRefinedQueries 需要正则格式
+				refined := generateRefinedQueries(originalQuery, githubMaxRefinedQueries)
 				added := 0
 				for _, refinedQuery := range refined {
-					// API 模式下对细分查询也做预处理
+					// API 模式下对细分查询做预处理
 					processedRefined := refinedQuery
 					if sourceType == models.SearchAccountTypeGitHubAPI {
 						processedRefined = preprocessQueryForAPI(refinedQuery)
@@ -643,6 +647,7 @@ func (s *GroupLeakScanService) executeSearchSource(ctx context.Context, runID, g
 					if !seenQueries[processedRefined] {
 						seenQueries[processedRefined] = true
 						queries = append(queries, processedRefined)
+						originalQueries = append(originalQueries, refinedQuery)
 						added++
 					}
 				}
