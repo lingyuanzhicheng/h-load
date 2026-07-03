@@ -439,7 +439,7 @@ func (s *GroupLeakScanService) validateConfig(ctx context.Context, groupID uint,
 	}
 	var count int64
 	if err := s.db.WithContext(ctx).Model(&models.GitHubSearchAccount{}).
-		Where("id IN ? AND status = ?", payload.AccountIDs, models.SearchAccountStatusActive).Count(&count).Error; err != nil {
+		Where("id IN ?", payload.AccountIDs).Count(&count).Error; err != nil {
 		return app_errors.ParseDBError(err)
 	}
 	if count != int64(len(payload.AccountIDs)) {
