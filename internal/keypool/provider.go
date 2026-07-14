@@ -236,54 +236,6 @@ func (p *KeyProvider) handleFailure(apiKey *models.APIKey, group *models.Group, 
 	})
 }
 
-// HandleLimitedFailure 处理受限密钥验证仍为429的情况：累加失败次数，达到阈值则切换为无效。
-func (p *KeyProvider) HandleLimitedFailure(apiKey *models.APIKey, group *models.Group) error {
-	keyHashKey := fmt.Sprintf("key:%d", apiKey.ID)
-	activeKeysListKey := fmt.Sprintf("group:%d:active_keys", group.ID)
-
-	keyDetails, err := p.store.HGetAll(keyHashKey)
-	if err != nil {
-		return fmt.Errorf("failed to get key details from store: %w", err)
-	}
-
-	failureCount, _ := strconv.ParseInt(keyDetails["failure_count"], 10, 64)
-	blacklistThreshold := group.EffectiveConfig.BlacklistThreshold
-
-	return p.executeTransactionWithRetry(func(tx *gorm.DB) error {
-		var key models.APIKey
-		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&key, apiKey.ID).Error; err != nil {
-			return fmt.Errorf("failed to lock key %d for update: %w", apiKey.ID, err)
-		}
-
-		newFailureCount := failureCount + 1
-		updates := map[string]any{"failure_count": newFailureCount}
-		shouldBlacklist := blacklistThreshold > 0 && newFailureCount >= int64(blacklistThreshold)
-		if shouldBlacklist {
-			updates["status"] = models.KeyStatusInvalid
-		}
-
-		if err := tx.Model(&key).Updates(updates).Error; err != nil {
-			return fmt.Errorf("failed to update key stats in DB: %w", err)
-		}
-
-		if _, err := p.store.HIncrBy(keyHashKey, "failure_count", 1); err != nil {
-			return fmt.Errorf("failed to increment failure count in store: %w", err)
-		}
-
-		if shouldBlacklist {
-			logrus.WithFields(logrus.Fields{"keyID": apiKey.ID, "threshold": blacklistThreshold}).Warn("Limited key has reached blacklist threshold, marking invalid.")
-			if err := p.store.LRem(activeKeysListKey, 0, apiKey.ID); err != nil {
-				return fmt.Errorf("failed to LRem key from active list: %w", err)
-			}
-			if err := p.store.HSet(keyHashKey, map[string]any{"status": models.KeyStatusInvalid}); err != nil {
-				return fmt.Errorf("failed to update key status to invalid in store: %w", err)
-			}
-		}
-
-		return nil
-	})
-}
-
 // LoadKeysFromDB 从数据库加载所有分组和密钥，并填充到 Store 中。
 func (p *KeyProvider) LoadKeysFromDB() error {
 	logrus.Debug("First time startup, loading keys from DB...")

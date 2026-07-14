@@ -234,8 +234,16 @@ func (ps *ProxyServer) executeRequestWithRetry(
 			logrus.Debugf("Request failed with status %d (attempt %d/%d) for key %s. Parsed Error: %s", statusCode, retryCount+1, cfg.MaxRetries, utils.MaskAPIKey(apiKey.KeyValue), parsedError)
 		}
 
-		// 使用解析后的错误信息更新密钥状态
-		ps.keyProvider.UpdateStatus(apiKey, group, false, parsedError)
+		// 429限流：设置为受限状态，不累加失败次数；其他错误走正常失败处理
+		if statusCode == 429 {
+			go func() {
+				if err := ps.keyProvider.UpdateKeyStatus(apiKey.GroupID, apiKey.ID, models.KeyStatusLimited); err != nil {
+					logrus.WithError(err).WithField("key_id", apiKey.ID).Error("Failed to set key status to limited on 429")
+				}
+			}()
+		} else {
+			ps.keyProvider.UpdateStatus(apiKey, group, false, parsedError)
+		}
 
 		// 判断是否为最后一次尝试
 		isLastAttempt := retryCount >= cfg.MaxRetries

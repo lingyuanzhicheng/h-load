@@ -68,13 +68,8 @@ func (s *KeyValidator) ValidateSingleKey(key *models.APIKey, group *models.Group
 	isValid, validationErr := ch.ValidateKey(ctx, key, group)
 
 	if errors.Is(validationErr, app_errors.ErrKeyRateLimited) {
-		// 若密钥已经是受限状态且仍为429，累加失败次数，达到阈值切换为无效
-		if key.Status == models.KeyStatusLimited {
-			if err := s.keypoolProvider.HandleLimitedFailure(key, group); err != nil {
-				logrus.WithError(err).WithField("key_id", key.ID).Error("Failed to handle limited key failure")
-			}
-		} else {
-			// 首次受限，设置为受限状态
+		// 429 既不算成功也不算失败：首次受限则设置为受限状态，已受限则保持不变，不累加失败次数
+		if key.Status != models.KeyStatusLimited {
 			if err := s.keypoolProvider.UpdateKeyStatus(key.GroupID, key.ID, models.KeyStatusLimited); err != nil {
 				logrus.WithError(err).WithField("key_id", key.ID).Error("Failed to set key status to limited")
 			}

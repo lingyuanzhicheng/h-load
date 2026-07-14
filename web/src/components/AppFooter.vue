@@ -14,7 +14,7 @@ const authorUrl = "https://github.com/tbphp";
           <n-icon :component="LogoGithub" color="#f0a020" :size="14" class="version-icon" />
           <span class="version-text">
             Github -
-            <span class="version-status">(2026/7/3)</span>
+            <span class="version-status">(2026/7/14)</span>
           </span>
         </a>
 
